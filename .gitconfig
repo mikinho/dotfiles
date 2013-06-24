@@ -1,0 +1,53 @@
+[user]
+    email = michael@cetoncorp.com
+    name = Michael Welter
+[color]
+    status = auto
+    diff = auto
+    interactive = auto
+    ui = auto
+[color "branch"]
+    current = yellow reverse
+    local = yellow
+    remote = green
+[alias]
+    alias = !git config --list | grep 'alias\\.' | sed 's/alias\\.\\([^=]*\\)=\\(.*\\)/\\1\\t=> \\2/' | sort
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset' --abbrev-commit --date=relative
+    lsd = log --graph --decorate --pretty=oneline --abbrev-commit --date=relative --all
+    this = !touch README.md && touch .gitignore && git init && git add . && git commit -m \"initial commit\"
+    create = "!f(){ mkdir \"$@\" && cd \"$@\" && git this; }; f"
+    staged = diff --cached
+    unstaged = diff
+    unstage = reset HEAD --
+    undo = reset --soft HEAD~1
+    ff = merge --ff-only
+    compare = !git --no-pager log origin/master..HEAD --abbrev-commit --pretty=oneline --date=relative
+    cloneall = clone --recursive
+    pullall = "!git pull --all --recurse-submodules && git submodule update --recursive"
+    cleanup = !git branch --merged master | grep -v 'master$' | xargs git branch -d
+    amend = !git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
+    orphaned = !git ls-files -z --deleted | xargs -0 git rm
+	last = log -1 HEAD
+	noup = log --graph --decorate --pretty=oneline --abbrev-commit --all @{upstream}^..
+	exec = "!exec "
+    fixsymlinks = "!git submodule foreach --recursive git ls-files -s | awk '/120000/{print $4}' | git update-index --assume-unchanged"
+[diff "odf"]
+    textconv=odt2txt
+[format]
+    numbered = auto
+[core]
+    legacyheaders = false
+    whitespace = -trailing-space
+    excludesfile = ~/.gitignore
+[repack]
+    usedeltabaseoffset = true
+[branch]
+    autosetupmerge = always
+    autosetuprebase = always
+[pager]
+    color = true
+    status = false
+[push]
+    default = tracking
+[rebase]
+    autosquash = true
