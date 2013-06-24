@@ -17,7 +17,7 @@ export LSCOLORS=GxFxCxDxBxegedabagaced
 export TERM=xterm-color 
 
 alias git-branch='git branch --no-color 2> /dev/null | sed -e "/^[^*]/d" -e "s/* \(.*\)/\1/"'
-alias git-isdirty='[[ $(git status --porcelain 2> /dev/null | grep "^??") ]] && echo "*"'
+alias git-isdirty='[[ 0 -lt $(git status --porcelain 2> /dev/null | wc -l ) ]] && echo "*"'
 
 # Better prompt w/ git integration
 export PS1="\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]\$([[ -n \$(git branch 2> /dev/null) ]] && echo \" \"\(\$(git-branch)\$(git-isdirty)\)) \[\033[37m\]$\[\033[00m\]: "
