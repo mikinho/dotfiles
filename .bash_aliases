@@ -19,9 +19,6 @@ alias kp='ps auxwww'
 alias cleansvn='find . -name ".svn" -exec rm -rf {} \;'
 alias cleangit='find . -name ".git" -exec rm -rf {} \;'
  
-# Make grep more user friendly by highlighting matches and excluding source control folders.
-alias grep="grep --color=auto --exclude-dir=\.svn --exclude-dir=\.git"
-
 # git helper aliases. they change the cwd so they need to be outside of .gitconfig
 alias git-top='cd "$(git rev-parse --show-toplevel)"'
 alias git-root='f() { local dir=$PWD; while : ; do git rev-parse --is-inside-work-tree &> /dev/null || break; cd "$(git rev-parse --show-toplevel)"; local dir=$PWD; cd ..; done; cd "$dir"; }; f'
