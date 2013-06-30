@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+show_usage() {
+    echo
+    echo "Links dotfiles to your $HOME directory"
+    echo
+    echo "USAGE: $0 [-f] [--force]"
+    echo
+    echo "  force        Prevents confirmation prompt to override existing files"
+    echo
+
+    unset -f show_usage;
+}
+
+if [ "$1" == "--help" ]; then
+    show_usage
+    exit 64
+fi;
+
+unset -f show_usage;
+
+if [[ "$1" != "--force" && "$1" != "-f" ]]; then
+    echo
+    read -p "This may overwrite existing files in your home directory. Are you sure? (Y/n) " -n 1
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        exit 64
+    fi
+fi
+
+pushd $(dirname $0) > /dev/null
+
+for file in .*
+do
+    if [ -f "${file}" ]
+    then
+        ln -fsv $PWD/${file} $HOME
+    fi
+done
+
+popd > /dev/null
