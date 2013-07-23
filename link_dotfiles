@@ -32,7 +32,7 @@ pushd $(dirname $0) > /dev/null
 
 for file in .*
 do
-    if [ -f "${file}" ]
+    if [ -f "${file}" -o -h "${file}" ]
     then
         ln -fsv $PWD/${file} $HOME
     fi
