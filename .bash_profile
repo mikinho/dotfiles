@@ -4,11 +4,11 @@
 ulimit -S -n 1024
 
 # Source .profile, containing login, non-bash related initializations.
-if [ -f ~/.profile ]; then
-    source ~/.profile
-fi
-
 # Source .bashrc, containing non-login related bash initializations.
-if [ -f ~/.bashrc ]; then
-    source ~/.bashrc
-fi
+# Source .$HOSTNAME, containing host specific bash initializations.
+
+for file in ~/.profile ~/.bashrc ~/.bashrc ~/.$(hostname -s) ;  do
+    if [ -f $file ]; then
+        source $file
+    fi
+done
