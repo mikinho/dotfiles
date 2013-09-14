@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
 #
 # Adam Sharp
 # Aug 21, 2013
@@ -14,20 +15,20 @@
 submodule_name=$(echo "$1" | sed 's/\/$//'); shift
 
 exit_err() {
-  [ $# -gt 0 ] && echo "fatal: $*" 1>&2
-  exit 1
+    [ $# -gt 0 ] && echo "fatal: $*" 1>&2
+    exit 1
 }
 
 if git submodule status "$submodule_name" >/dev/null 2>&1; then
-  git submodule deinit -f "$submodule_name"
-  git rm -f "$submodule_name"
+    git submodule deinit -f "$submodule_name"
+    git rm -f "$submodule_name"
 
-  git config -f .gitmodules --remove-section "submodule.$submodule_name"
-  if [ -z "$(cat .gitmodules)" ]; then
-    git rm -f .gitmodules
-  else
-    git add .gitmodules
-  fi
+    git config -f .gitmodules --remove-section "submodule.$submodule_name"
+    if [ -z "$(cat .gitmodules)" ]; then
+        git rm -f .gitmodules
+    else
+        git add .gitmodules
+    fi
 else
-  exit_err "Submodule '$submodule_name' not found"
+    exit_err "Submodule '$submodule_name' not found"
 fi
