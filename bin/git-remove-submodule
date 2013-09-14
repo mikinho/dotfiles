@@ -11,13 +11,46 @@
 #  2) Remove the submodule from the index and working directory
 #  3) Clean up the .gitmodules file
 #
+# History
+# 
+# 2013-08-21 = Adam Sharp 
+#       - Initial version
+# 2013-09-14 = Michael Welter 
+#       - Made more portable
+#       - Added show_usage
+#       - Added submodule name argument check
+#
 
-submodule_name=$(echo "$1" | sed 's/\/$//'); shift
+show_usage() {
+    echo
+    echo "Removes specified git submodule"
+    echo
+    echo "USAGE: $0 path/to/submodule"
+    echo
+    echo "Does the inverse of 'git submodule add':"
+    echo "  1) 'deinit' the submodule"
+    echo "  2) Remove the submodule from the index and working directory"
+    echo "  3) Clean up the .gitmodules file"
+    echo
+
+    [ ! -z "$1" ] && exit $1
+}
 
 exit_err() {
-    [ $# -gt 0 ] && echo "fatal: $*" 1>&2
+    [ $# -gt 0 ] && echo "ERROR: $*" 1>&2
     exit 1
 }
+
+if [ -z "$1" ]; then
+    show_usage
+    exit_err "Submodule not specified"
+fi;
+
+if [ "$1" == "--help" ]; then
+    show_usage 64
+fi;
+
+submodule_name=$(echo "$1" | sed 's/\/$//'); shift
 
 if git submodule status "$submodule_name" >/dev/null 2>&1; then
     git submodule deinit -f "$submodule_name"
