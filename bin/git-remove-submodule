@@ -4,7 +4,7 @@
 # Adam Sharp
 # Aug 21, 2013
 #
-# Usage: Add it to your PATH and `git remove-submodule path/to/submodule`.
+# Usage: Add it to your PATH and `git-remove-submodule path/to/submodule`.
 #
 # Does the inverse of `git submodule add`:
 #  1) `deinit` the submodule
