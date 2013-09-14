@@ -1,9 +1,6 @@
 # .bash_aliases
 
 alias startvm='prlctl start'
-alias couchit='ssh -2 -N -L 127.0.0.1:5984:127.0.0.1:5984'
-alias hera="screen /dev/tty.usbserial-FTFS0CGY 115200,ixoff"
-alias tower="screen /dev/tty.usbserial 115200,ixoff"
 
 # Flush the DNS cache
 alias flushdns="sudo killall -HUP mDNSResponder"
