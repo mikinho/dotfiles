@@ -9,15 +9,12 @@ show_usage() {
     echo "  force        Prevents confirmation prompt to override existing files"
     echo
 
-    unset -f show_usage;
+    [ ! -z "$1" ] && exit $1
 }
 
 if [ "$1" == "--help" ]; then
-    show_usage
-    exit 64
+    show_usage 64
 fi;
-
-unset -f show_usage;
 
 if [[ "$1" != "--force" && "$1" != "-f" ]]; then
     echo
@@ -41,5 +38,31 @@ do
         ln -fsv $PWD/${file} $HOME
     fi
 done
+
+cp -rfv $PWD/bin $HOME
+
+# Source platform specific profile
+UNAME=$(uname)
+
+case $UNAME in
+    "")
+        ;;
+    "Darwin")
+        PLATFORM=osx
+        ;;
+    "CYGWIN"*)
+        PLATFORM=windows
+        ;;
+    "MINGW"*)
+        PLATFORM=windows
+        ;;
+    *)
+        PLATFORM="$(tr [A-Z] [a-z] <<< "$UNAME")"
+        ;;
+esac
+
+if [ -f "$PLATFORM/.$PLATFORM" ]; then
+    ln -fsv $PWD/$PLATFORM/.$PLATFORM $HOME
+fi
 
 popd > /dev/null
