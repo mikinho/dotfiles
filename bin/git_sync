@@ -1,5 +1,6 @@
 #!/usr/bin/python -tt
 import os
+import subprocess
 import sys
 
 try:
@@ -17,14 +18,11 @@ def system(cmd, ignore_err=False):
         print(Fore.RED + "Command {0} failed".format(cmd) + Fore.RESET)
         sys.exit(1)
 
-system("git pull --ff-only")
-
-system("git submodule sync")
-
-#currently have two levels deep of submodules, if you add more, add another line below
-system("git submodule update --init --recursive")
-system("git submodule update --init --recursive")
-system("git submodule status --recursive")
+def gittopdir():
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--show-toplevel"]).rstrip()
+    except:
+        return None
 
 def sync_submodules():
     modules = open('.gitmodules')
@@ -53,5 +51,31 @@ def sync_submodules():
             os.chdir(current_path)
         i += 1
 
-if os.path.exists(".gitmodules"):
-    sync_submodules()
+def main(args):
+    gitdir = gittopdir();
+    if gitdir is None:
+        sys.exit(128)
+
+    # save our cwd
+    cwd = os.getcwd()
+
+    # chdir to git top level dir
+    os.chdir(gitdir)
+
+    system("git pull --ff-only")
+    system("git submodule sync")
+
+    #currently have two levels deep of submodules, if you add more, add another line below
+    system("git submodule update --init --recursive")
+    system("git submodule update --init --recursive")
+    system("git submodule status --recursive")
+
+    if os.path.exists(".gitmodules"):
+        sync_submodules()
+
+    # restore cwd
+    if cwd != os.getcwd():
+        os.chdir(cwd)
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
