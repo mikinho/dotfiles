@@ -12,3 +12,27 @@ for file in ~/.profile ~/.bashrc ~/.bashrc ~/.$(hostname -s) ;  do
         source $file
     fi
 done
+
+# Source platform specific profile
+UNAME=$(uname)
+
+case $UNAME in
+	"")
+		;;
+    "Darwin")
+  		PLATFORM_PROFILE=.osx
+		;;
+    "CYGWIN"*)
+  		PLATFORM_PROFILE=.windows
+		;;
+    "MINGW"*)
+  		PLATFORM_PROFILE=.windows
+		;;
+	*)
+  		PLATFORM_PROFILE=."$(tr [A-Z] [a-z] <<< "$UNAME")"
+		;;
+esac
+
+if [ -f "$PLATFORM_PROFILE" ]; then
+    source $PLATFORM_PROFILE
+fi
