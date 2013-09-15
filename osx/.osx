@@ -20,3 +20,8 @@ if [ ! -f $HOME/bin/subl ]; then
         fi
     done
 fi
+
+# If installed use newer versions of Git than what is distributed with XCode
+if [ -d /usr/local/git/bin/ ]; then
+	export PATH=/usr/local/git/bin/:$PATH
+fi
