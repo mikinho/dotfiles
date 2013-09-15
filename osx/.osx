@@ -1,0 +1,20 @@
+# .osx
+
+# Start Parallels Virtual Machine
+alias startvm='prlctl start'
+
+# Flush the DNS cache
+alias flushdns="sudo killall -HUP mDNSResponder"
+
+# Get OS X Software Updates, and update installed Ruby gems, Homebrew, npm, and their installed packages
+alias updateall='sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; npm update npm -g; npm update -g; sudo gem update'
+
+# Setup Sublime to launch from command line
+if [ ! -f $HOME/bin/subl ]; then
+    for subl in /Applications/Sublime\ Text.app/Contents/SharedSupport/bin/subl ;  do
+        if [ -f "$subl" ]; then
+            ln -sf "$subl" $HOME/bin/subl
+            break;
+        fi
+    done
+fi
