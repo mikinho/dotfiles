@@ -29,11 +29,23 @@ pushd $(dirname $0) > /dev/null
 
 for file in .*
 do
+    if [[ "${file}" == "." ]]; then
+        continue
+    fi
+
+    if [[ "${file}" == ".." ]]; then
+        continue
+    fi
+
+    if [[ "${file}" == ".git" ]]; then
+        continue
+    fi
+
     if [[ "${file}" == ".gitmodules" ]]; then
         continue
     fi
 
-    if [ -f "${file}" -o -h "${file}" ]
+    if [ -e "${file}" ]
     then
         ln -fsv $PWD/${file} $HOME
     fi
