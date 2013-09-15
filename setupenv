@@ -17,7 +17,8 @@ link_dotfiles ()
 {
     local FILE
 
-    if [ -z $1 ]; then
+    if [ -z $1 ]
+    then
         return
     fi
 
@@ -25,24 +26,32 @@ link_dotfiles ()
 
     for FILE in .*
     do
-        if [[ "$FILE" == "." ]]; then
+        if [[ "$FILE" == "." ]]
+        then
             continue
         fi
 
-        if [[ "$FILE" == ".." ]]; then
+        if [[ "$FILE" == ".." ]]
+        then
             continue
         fi
 
-        if [[ "$FILE" == ".git" ]]; then
+        if [[ "$FILE" == ".git" ]]
+        then
             continue
         fi
 
-        if [[ "$FILE" == ".gitmodules" ]]; then
+        if [[ "$FILE" == ".gitmodules" ]]
+        then
             continue
         fi
 
         if [ -e "$FILE" ]
         then
+            if [ -d "$HOME/$FILE" ]
+            then
+                rm -rf $HOME/$FILE
+            fi
             ln -fsv $PWD/$FILE $HOME/$FILE
         fi
     done
@@ -50,11 +59,13 @@ link_dotfiles ()
     popd > /dev/null
 }
 
-if [ "$1" == "--help" ]; then
+if [ "$1" == "--help" ]
+then
     show_usage 64
 fi;
 
-if [[ "$1" != "--force" && "$1" != "-f" ]]; then
+if [[ "$1" != "--force" && "$1" != "-f" ]]
+then
     echo
     read -p "This may overwrite existing files in your home directory. Are you sure? (Y/n) " -n 1
     echo
@@ -69,7 +80,8 @@ fi
 link_dotfiles ${PWD}
 
 # Copy bin files from this dir
-if [ -d "./bin" ]; then
+if [ -d "./bin" ]
+then
     cp -rfv ${PWD}/bin $HOME
 fi
 
@@ -93,19 +105,22 @@ case $UNAME in
         ;;
 esac
 
-if [ -d "$PLATFORM" ]; then
+if [ -d "$PLATFORM" ]
+then
     pushd $PLATFORM > /dev/null
 
     # Link dotfiles from platform dir
     link_dotfiles ${PWD}
 
     # Run setupenv if exists
-    if [ -x "./setupenv" ]; then
+    if [ -x "./setupenv" ]
+    then
         ./setupenv
     fi
 
     # Copy bin files from platform dir
-    if [ -d "./bin" ]; then
+    if [ -d "./bin" ]
+    then
         cp -rfv ${PWD}/bin $HOME
     fi
 
