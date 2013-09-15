@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Setup Sublime to launch from command line
+if [ ! -f $HOME/bin/subl ]; then
+    for subl in /Applications/Sublime\ Text.app/Contents/SharedSupport/bin/subl ;  do
+        if [ -f "$subl" ]; then
+            mkdir -p $HOME/bin
+            ln -sf "$subl" $HOME/bin/subl
+            break;
+        fi
+    done
+fi
