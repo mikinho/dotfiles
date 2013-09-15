@@ -60,23 +60,25 @@ def main(args):
     # save our cwd
     cwd = os.getcwd()
 
-    # chdir to git top level dir
-    os.chdir(gitdir)
+    try:
+        # chdir to git top level dir
+        os.chdir(gitdir)
 
-    system("git pull --ff-only")
-    system("git submodule sync")
+        system("git pull --ff-only")
+        system("git submodule sync")
 
-    #currently have two levels deep of submodules, if you add more, add another line below
-    system("git submodule update --init --recursive")
-    system("git submodule update --init --recursive")
-    system("git submodule status --recursive")
+        #currently have two levels deep of submodules, if you add more, add another line below
+        system("git submodule update --init --recursive")
+        system("git submodule update --init --recursive")
+        system("git submodule status --recursive")
 
-    if os.path.exists(".gitmodules"):
-        sync_submodules()
+        if os.path.exists(".gitmodules"):
+            sync_submodules()
 
-    # restore cwd
-    if cwd != os.getcwd():
-        os.chdir(cwd)
+    finally:
+        # restore cwd
+        if cwd != os.getcwd():
+            os.chdir(cwd)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
