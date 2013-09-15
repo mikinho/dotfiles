@@ -31,6 +31,7 @@
 	noup = log --graph --decorate --pretty=oneline --abbrev-commit --all @{upstream}^..
 	exec = "!exec "
     fixsymlinks = "!git submodule foreach --recursive git ls-files -s | awk '/120000/{print $4}' | git update-index --assume-unchanged"
+    failed = ls-files --unmerged --abbrev
 [diff "odf"]
     textconv=odt2txt
 [format]
