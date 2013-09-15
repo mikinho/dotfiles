@@ -7,32 +7,49 @@ ulimit -S -n 1024
 # Source .bashrc, containing non-login related bash initializations.
 # Source .$HOSTNAME, containing host specific bash initializations.
 
-for file in ~/.profile ~/.bashrc ~/.bashrc ~/.$(hostname -s) ;  do
-    if [ -f $file ]; then
-        source $file
-    fi
-done
+function __source
+{
+    while (( "$#" )); do
 
-# Source platform specific profile
-UNAME=$(uname)
+        if [ -f "$1" ]; then
+            source "$1"
+        fi
 
-case $UNAME in
-	"")
-		;;
-    "Darwin")
-  		PLATFORM_PROFILE=.osx
-		;;
-    "CYGWIN"*)
-  		PLATFORM_PROFILE=.windows
-		;;
-    "MINGW"*)
-  		PLATFORM_PROFILE=.windows
-		;;
-	*)
-  		PLATFORM_PROFILE=."$(tr [A-Z] [a-z] <<< "$UNAME")"
-		;;
-esac
+        shift
 
-if [ -f "$PLATFORM_PROFILE" ]; then
-    source $PLATFORM_PROFILE
-fi
+    done
+}
+
+function __source_platform
+{
+    local UNAME
+    local PLATFORM
+
+    # Source platform specific profile
+    UNAME=$(uname)
+
+    case $UNAME in
+      "")
+        ;;
+        "Darwin")
+          PLATFORM=.osx
+        ;;
+        "CYGWIN"*)
+          PLATFORM=.windows
+        ;;
+        "MINGW"*)
+          PLATFORM=.windows
+        ;;
+      *)
+          PLATFORM=."$(tr [A-Z] [a-z] <<< "$UNAME")"
+        ;;
+    esac
+
+    [ -f "$HOME/$PLATFORM" ] && . "$HOME/$PLATFORM"
+}
+
+__source ~/.profile ~/.bashrc ~/.$(hostname -s)
+__source_platform
+
+unset __source
+unset __source_platform
