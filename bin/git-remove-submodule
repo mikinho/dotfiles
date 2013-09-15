@@ -51,9 +51,7 @@ stage_gitmodules()
 }
 
 is_legacy_git()
-{
-        return 0
-        
+{        
     local VER
     local MIN_VER
 
