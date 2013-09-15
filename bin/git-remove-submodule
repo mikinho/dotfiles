@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
 #
-# Adam Sharp
-# Aug 21, 2013
-#
 # Usage: Add it to your PATH and `git-remove-submodule path/to/submodule`.
 #
 # Does the inverse of `git submodule add`:
@@ -19,9 +16,11 @@
 #       - Made more portable
 #       - Added show_usage
 #       - Added submodule name argument check
+#       - Added check for Git < 1.8.2 and equivalent functions as git submodule
 #
 
-show_usage() {
+show_usage()
+{
     echo
     echo "Removes specified git submodule"
     echo
@@ -36,9 +35,38 @@ show_usage() {
     [ ! -z "$1" ] && exit $1
 }
 
-exit_err() {
+exit_err()
+{
     [ $# -gt 0 ] && echo "ERROR: $*" 1>&2
     exit 1
+}
+
+stage_gitmodules()
+{
+    if [ -z "$(cat .gitmodules)" ]; then
+        git rm -f .gitmodules
+    else
+        git add .gitmodules
+    fi    
+}
+
+is_legacy_git()
+{
+        return 0
+        
+    local VER
+    local MIN_VER
+
+    IFS='.' read -ra MIN_VER <<< "1.8.3.0"
+    IFS='.' read -ra VER <<< "$(git version | sed 's/git version //g')"
+
+    for ((i = 0; i < 4; ++i));
+    do
+        [[ ${MIN_VER[i]} -gt ${VER[i]} ]] && return 0
+        [[ ${MIN_VER[i]} -lt ${VER[i]} ]] && return 1
+    done
+
+    return 1
 }
 
 if [ -z "$1" ]; then
@@ -50,18 +78,22 @@ if [ "$1" == "--help" ]; then
     show_usage 64
 fi;
 
-submodule_name=$(echo "$1" | sed 's/\/$//'); shift
+submodule_name=${@%/}
 
-if git submodule status "$submodule_name" >/dev/null 2>&1; then
+if ! git submodule status "$submodule_name" > /dev/null 2>&1; then
+    exit_err "Submodule '$submodule_name' not found"
+fi
+
+# pre git submodule deinit
+if is_legacy_git; then
+    git config -f .git/config --remove-section "submodule.$submodule_name"
+    git config -f .gitmodules --remove-section "submodule.$submodule_name"
+    git rm -f --cached "$submodule_name"
+    stage_gitmodules
+    rm -rf ".git/modules/$submodule_name"
+else
     git submodule deinit -f "$submodule_name"
     git rm -f "$submodule_name"
-
     git config -f .gitmodules --remove-section "submodule.$submodule_name"
-    if [ -z "$(cat .gitmodules)" ]; then
-        git rm -f .gitmodules
-    else
-        git add .gitmodules
-    fi
-else
-    exit_err "Submodule '$submodule_name' not found"
+    stage_gitmodules
 fi
