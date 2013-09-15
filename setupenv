@@ -45,7 +45,7 @@ link_dotfiles ()
         then
             ln -fsv $PWD/$FILE $HOME
         fi
-    done    
+    done
 
     popd > /dev/null
 }
@@ -58,13 +58,12 @@ if [[ "$1" != "--force" && "$1" != "-f" ]]; then
     echo
     read -p "This may overwrite existing files in your home directory. Are you sure? (Y/n) " -n 1
     echo
-    if [[ $REPLY =~ ^[Nn]$ ]]; then
-        exit 64
-    fi
+    case $REPLY in
+        "[Nn]*")
+            exit 64
+            ;;
+    esac
 fi
-
-# Running in a subshell so chdir ok
-cd $(dirname $0)
 
 # Link dotfiles from this dir
 link_dotfiles ${PWD}
@@ -103,7 +102,7 @@ if [ -d "$PLATFORM" ]; then
     # Run setupenv if exists
     if [ -x "./setupenv" ]; then
         ./setupenv
-    fi    
+    fi
 
     # Copy bin files from platform dir
     if [ -d "./bin" ]; then
