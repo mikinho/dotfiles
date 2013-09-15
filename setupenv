@@ -43,7 +43,7 @@ link_dotfiles ()
 
         if [ -e "$FILE" ]
         then
-            ln -fsv $PWD/$FILE $HOME
+            ln -fsv $PWD/$FILE $HOME/
         fi
     done
 
