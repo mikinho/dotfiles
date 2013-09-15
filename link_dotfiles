@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-show_usage() {
+show_usage ()
+{
     echo
     echo "Links dotfiles to your $HOME directory"
     echo
@@ -10,6 +11,43 @@ show_usage() {
     echo
 
     [ ! -z "$1" ] && exit $1
+}
+
+link_dotfiles ()
+{
+    local FILE
+
+    if [ -z $1 ]; then
+        return
+    fi
+
+    pushd $1 > /dev/null
+
+    for FILE in .*
+    do
+        if [[ "$FILE" == "." ]]; then
+            continue
+        fi
+
+        if [[ "$FILE" == ".." ]]; then
+            continue
+        fi
+
+        if [[ "$FILE" == ".git" ]]; then
+            continue
+        fi
+
+        if [[ "$FILE" == ".gitmodules" ]]; then
+            continue
+        fi
+
+        if [ -e "$FILE" ]
+        then
+            ln -fsv $PWD/$FILE $HOME
+        fi
+    done    
+
+    popd > /dev/null
 }
 
 if [ "$1" == "--help" ]; then
@@ -25,33 +63,16 @@ if [[ "$1" != "--force" && "$1" != "-f" ]]; then
     fi
 fi
 
-pushd $(dirname $0) > /dev/null
+# Running in a subshell so chdir ok
+cd $(dirname $0)
 
-for file in .*
-do
-    if [[ "${file}" == "." ]]; then
-        continue
-    fi
+# Link dotfiles from this dir
+link_dotfiles ${PWD}
 
-    if [[ "${file}" == ".." ]]; then
-        continue
-    fi
-
-    if [[ "${file}" == ".git" ]]; then
-        continue
-    fi
-
-    if [[ "${file}" == ".gitmodules" ]]; then
-        continue
-    fi
-
-    if [ -e "${file}" ]
-    then
-        ln -fsv $PWD/${file} $HOME
-    fi
-done
-
-cp -rfv $PWD/bin $HOME
+# Copy bin files from this dir
+if [ -d "./bin" ]; then
+    cp -rfv ${PWD}/bin $HOME
+fi
 
 # Source platform specific profile
 UNAME=$(uname)
@@ -73,8 +94,21 @@ case $UNAME in
         ;;
 esac
 
-if [ -f "$PLATFORM/.$PLATFORM" ]; then
-    ln -fsv $PWD/$PLATFORM/.$PLATFORM $HOME
-fi
+if [ -d "$PLATFORM" ]; then
+    pushd $PLATFORM > /dev/null
 
-popd > /dev/null
+    # Link dotfiles from platform dir
+    link_dotfiles ${PWD}
+
+    # Run setupenv if exists
+    if [ -x "./setupenv" ]; then
+        ./setupenv
+    fi    
+
+    # Copy bin files from platform dir
+    if [ -d "./bin" ]; then
+        cp -rfv ${PWD}/bin $HOME
+    fi
+
+    popd > /dev/null
+fi
