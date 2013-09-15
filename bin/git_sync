@@ -1,0 +1,55 @@
+#!/usr/bin/python -tt
+import os
+import sys
+
+try:
+    from colorama import Fore, Back, Style
+except:
+    class Fore:
+        BLUE = ""
+        RED = ""
+        RESET = ""
+
+def system(cmd, ignore_err=False):
+    print(Fore.BLUE + cmd + Fore.RESET)
+    ret = os.system(cmd)
+    if ((ret >> 8) & 0xff and not ignore_err):
+        print(Fore.RED + "Command {0} failed".format(cmd) + Fore.RESET)
+        sys.exit(1)
+
+system("git pull --ff-only")
+
+#currently have two levels deep of submodules, if you add more, add another line below
+system("git submodule update --init --recursive")
+system("git submodule update --init --recursive")
+system("git submodule status --recursive")
+
+def sync_submodules():
+    modules = open('.gitmodules')
+    lines = modules.readlines()
+    modules.close()
+
+    i = 0
+    while i < len(lines):
+        if "[submodule " in lines[i]:
+            path = lines[i+1].split("=")[1].strip() 
+            url = lines[i+2].split("=")[1].strip()
+            branch = "master"
+            i += 2
+            if i < len(lines)-1:
+                if "branch = " in lines[i+1]:
+                    i += 1
+                    branch = lines[i].split("=")[1].strip()
+            print(Fore.BLUE + "Syncing {0} to {1}".format(path, branch) + Fore.RESET)
+            current_path = os.getcwd()
+            os.chdir(path)
+            system("git fetch")
+            system("git checkout {0}".format(branch))
+            system("git merge origin/{0} --ff-only".format(branch))
+            if os.path.exists(".gitmodules"):
+                sync_submodules()
+            os.chdir(current_path)
+        i += 1
+
+if os.path.exists(".gitmodules"):
+    sync_submodules()
