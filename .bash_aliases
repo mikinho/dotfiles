@@ -1,5 +1,20 @@
 # .bash_aliases
 
+# Bash Functions 
+
+function git-root
+{
+	git rev-parse --is-inside-work-tree &> /dev/null || return
+
+	while :
+	do
+		cd "$(git rev-parse --show-toplevel)"
+		cd ..
+		git rev-parse --is-inside-work-tree &> /dev/null || break
+	done
+	cd - &> /dev/null
+}
+
 # Add some easy shortcuts for formatted directory listings
 alias ll='ls -lF'
 alias la='ls -alF'
@@ -13,7 +28,6 @@ alias cleangit='find . -name ".git" -exec rm -rf {} \;'
  
 # git helper aliases. they change the cwd so they need to be outside of .gitconfig
 alias git-top='cd "$(git rev-parse --show-toplevel)"'
-alias git-root='f() { local dir=$PWD; while : ; do git rev-parse --is-inside-work-tree &> /dev/null || break; cd "$(git rev-parse --show-toplevel)"; local dir=$PWD; cd ..; done; cd "$dir"; }; f'
 
 # OS X has no `md5sum`, so use `md5` as a fallback
 command -v md5sum > /dev/null || alias md5sum="md5"
