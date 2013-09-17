@@ -4,7 +4,7 @@
 
 function git-root
 {
-	git rev-parse --is-inside-work-tree &> /dev/null || return
+	git rev-parse --is-inside-work-tree 1> /dev/null || return
 
 	while :
 	do
