@@ -6,17 +6,15 @@ ulimit -S -n 1024
 # Source .profile, containing login, non-bash related initializations.
 # Source .bashrc, containing non-login related bash initializations.
 # Source .$HOSTNAME, containing host specific bash initializations.
+# Source .$PLATFORM, containing os\platform specific bash initializations.
 
 function __source
 {
     while (( "$#" )); do
-
         if [ -f "$1" ]; then
             source "$1"
         fi
-
         shift
-
     done
 }
 
@@ -31,13 +29,13 @@ function __source_platform
     case $UNAME in
       "")
         ;;
-        "Darwin")
+      "Darwin")
           PLATFORM=.osx
         ;;
-        "CYGWIN"*)
+      "CYGWIN"*)
           PLATFORM=.windows
         ;;
-        "MINGW"*)
+      "MINGW"*)
           PLATFORM=.windows
         ;;
       *)
