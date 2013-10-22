@@ -1,1 +1,5 @@
 # .windows
+#
+# # start ssh-agent if it isn't already running
+# ps -f | grep ssh-agent || eval `ssh-agent -s`
+
