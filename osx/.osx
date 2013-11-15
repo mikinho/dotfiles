@@ -8,8 +8,3 @@ alias flushdns="sudo killall -HUP mDNSResponder"
 
 # Get OS X Software Updates, and update installed Ruby gems, Homebrew, npm, and their installed packages
 alias updateall='sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; npm update npm -g; npm update -g; sudo gem update'
-
-# If installed use newer versions of Git than what is distributed with XCode
-if [ -d /usr/local/git/bin/ ]; then
-	export PATH=/usr/local/git/bin/:$PATH
-fi

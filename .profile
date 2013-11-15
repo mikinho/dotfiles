@@ -11,9 +11,10 @@ then
 fi
 
 # set PATH so it includes user's private and local bin if it exists
-for each in "$HOME/bin" "/usr/local/bin" "/usr/local/sbin"
+for each in "$HOME/bin" "/usr/local/git/bin" "/usr/local/bin" "/usr/local/sbin"
 do
-    if [ -d "$each" ] ; then
+    if [ -d "$each" ] && [[ ! $PATH =~ (^|:)$each(:|$) ]]
+    then
         PATH="$each:$PATH"
     fi
 done
