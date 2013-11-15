@@ -1,23 +1,20 @@
 # .profile
 
-# if running bash
-if [ -n "$BASH_VERSION" ]
-then
-    # include .bashrc if it exists
-    if [ -f "$HOME/.bashrc" ]
-    then
-        source "$HOME/.bashrc"
-    fi
-fi
+function __add_to_path
+{
+    while (( "$#" )); do
+        if [ -d "$1" ] && [[ ! $PATH =~ (^|:)$1(:|$) ]]
+	    then
+	        PATH="$1:$PATH"
+	    fi
+        shift
+    done
+}
 
 # set PATH so it includes user's private and local bin if it exists
-for each in "$HOME/bin" "/usr/local/git/bin" "/usr/local/bin" "/usr/local/sbin"
-do
-    if [ -d "$each" ] && [[ ! $PATH =~ (^|:)$each(:|$) ]]
-    then
-        PATH="$each:$PATH"
-    fi
-done
+__add_to_path "$HOME/bin" "/usr/local/git/bin" "/usr/local/bin" "/usr/local/sbin"
+
+unset __add_to_path
 
 if [ -d $HOME/android ]
 then
