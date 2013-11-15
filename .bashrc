@@ -63,11 +63,11 @@ __source /etc/bash_completion
 
 # Make grep more user friendly by highlighting matches and excluding source control folders.
 if grep --help 2>&1 | grep --no-messages --quiet "\-\-color" ; then
-	export GREP_OPTIONS="--color=auto"
+    export GREP_OPTIONS="--color=auto"
 fi
 
 if echo "." | grep --no-messages --quiet --exclude-dir="" "." 2> /dev/null ; then
-  	export GREP_OPTIONS="$GREP_OPTIONS --exclude-dir=\.svn --exclude-dir=\.git"
+    export GREP_OPTIONS="$GREP_OPTIONS --exclude-dir=\.svn --exclude-dir=\.git"
 fi
 
 # Everyone need some color in their life

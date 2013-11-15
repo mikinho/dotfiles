@@ -4,15 +4,15 @@
 
 function git-root
 {
-	git rev-parse --is-inside-work-tree 1> /dev/null || return
+    git rev-parse --is-inside-work-tree 1> /dev/null || return
 
-	while :
-	do
-		cd "$(git rev-parse --show-toplevel)"
-		cd ..
-		git rev-parse --is-inside-work-tree &> /dev/null || break
-	done
-	cd - &> /dev/null
+    while :
+    do
+        cd "$(git rev-parse --show-toplevel)"
+        cd ..
+        git rev-parse --is-inside-work-tree &> /dev/null || break
+    done
+    cd - &> /dev/null
 }
 
 # Add some easy shortcuts for formatted directory listings
