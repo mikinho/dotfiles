@@ -103,9 +103,14 @@ shopt -s histappend
 # Autocorrect typos in path names when using `cd`
 shopt -s cdspell
 
-# Append commands to the history every time a prompt is shown,
-# instead of after closing the session.
-export PROMPT_COMMAND='history -a'
+# Export PROMPT_COMMAND only needed once
+export PROMPT_COMMAND
+
+# Append commands to the history every time a prompt is shown, instead of after closing the session.
+# PROMPT_COMMAND='history -a'
+
+# Set iTerm Window\Tab Title
+PROMPT_COMMAND='echo -ne "\033]0;${HOSTNAME}: ${PWD/$HOME/~}\007"'
 
 # Source .bash_aliases,
 if [ -f ~/.bash_aliases ]; then
