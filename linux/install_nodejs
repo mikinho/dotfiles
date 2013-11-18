@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+if command -v apt-get > /dev/null
+then
+    CWD=$PWD
+
+    echo ">>>>>>>>Install Node.js"
+
+    sudo apt-get install python g++ make
+    mkdir -p ~/src && cd ~/src
+    wget -N http://nodejs.org/dist/node-latest.tar.gz
+    tar xzvf node-latest.tar.gz && cd node-v*
+    ./configure
+    make
+    sudo make install
+
+    cd ${CWD}
+fi
