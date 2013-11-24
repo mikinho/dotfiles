@@ -46,6 +46,27 @@ link_dotfiles ()
             continue
         fi
 
+        if [[ "$FILE" == ".ssh" ]]
+        then
+            # make our ~/.ssh if it doesn't exist
+            mkdir -p $HOME/.ssh
+            chmod 700 $HOME/.ssh
+
+            # setup proper permissions
+            [[ -e $HOME/.ssh/id_rsa ]] && chmod 600 $HOME/.ssh/id_rsa
+            [[ -e $HOME/.ssh/id_ra.pub ]] && chmod 644 ~/.ssh/id_rsa.pub
+
+            touch $HOME/.ssh/authorized_keys
+            chmod 644 $HOME/.ssh/authorized_keys
+            touch $HOME/.ssh/known_hosts
+            chmod 644 $HOME/.ssh/known_hosts
+            
+            # copy any files
+            cp -rfv $PWD/$FILE/* $HOME/$FILE/
+
+            continue
+        fi
+
         if [ -e "$FILE" ]
         then
             if [ -d "$HOME/$FILE" ]
