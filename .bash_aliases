@@ -15,10 +15,23 @@ function git-root
     cd - &> /dev/null
 }
 
+# Everyone need some color in their life
+export CLICOLOR=1
+export LSCOLORS=GxFxCxDxBxegedabagaced
+export TERM=xterm-color
+
 # Add some easy shortcuts for formatted directory listings
-alias ll='ls -lF'
-alias la='ls -alF'
-alias ls='ls -F'
+if man ls | grep -q TERM; then
+    export LS_OPTIONS="--color -l"
+
+    alias ll='ls -lF'
+    alias la='ls -alF'
+    alias ls='ls -F'
+else
+    alias ll='ls --color=auto -lF'
+    alias la='ls --color=auto -alF'
+    alias ls='ls --color=auto -F'
+fi
 
 alias kp='ps auxwww'
 

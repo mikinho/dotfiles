@@ -70,12 +70,6 @@ if echo "." | grep --no-messages --quiet --exclude-dir="" "." 2> /dev/null ; the
     export GREP_OPTIONS="$GREP_OPTIONS --exclude-dir=\.svn --exclude-dir=\.git"
 fi
 
-# Everyone need some color in their life
-export LS_OPTIONS="--color -l"
-export CLICOLOR=1
-export LSCOLORS=GxFxCxDxBxegedabagaced
-export TERM=xterm-color
-
 # Include these alias here since we are using it within out prompt
 alias git-branch='git branch --no-color 2> /dev/null | sed -e "/^[^*]/d" -e "s/* \(.*\)/\1/"'
 alias git-isdirty='git status --porcelain 2> /dev/null | grep --no-messages --quiet " " && echo "*"'
