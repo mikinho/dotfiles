@@ -21,7 +21,7 @@ export LSCOLORS=GxFxCxDxBxegedabagaced
 export TERM=xterm-color
 
 # Add some easy shortcuts for formatted directory listings
-if man ls | grep -q TERM; then
+if command -v man > /dev/null && man ls | grep -q TERM; then
     export LS_OPTIONS="--color -l"
 
     alias ll='ls -lF'
