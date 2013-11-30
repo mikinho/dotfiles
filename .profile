@@ -3,8 +3,7 @@
 function __add_to_path
 {
     while (( "$#" )); do
-        if [ -d "$1" ] && [[ ! $PATH =~ (^|:)$1(:|$) ]]
-	    then
+        if [ -d "$1" ] && [[ "$PATH" != *:"$1":* ]] && [[ "$PATH" != *:"$1" ]] && [[ "$PATH" != "$1":* ]]; then
 	        PATH="$1:$PATH"
 	    fi
         shift
