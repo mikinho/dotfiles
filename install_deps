@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
 
-if command -v yum > /dev/null
-then
-    sudo yum -y install ctags cscope vim htop
-fi
+# Mac
+function install_deps_osx
+{
+    # Homebrew
+    ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go/install)"
 
-if command -v apt-get > /dev/null
-then
+    brew doctor
+    brew install cscope wget lrzsz
+}
+
+# Fedora
+function install_deps_linux_fedora
+{
+    sudo yum -y install ctags cscope vim htop
+}
+
+# Ubuntu
+function install_deps_linux_ubuntu
+{
     # Latest stable Git release
     sudo apt-get install python-software-properties
     sudo add-apt-repository ppa:git-core/ppa
@@ -14,4 +26,28 @@ then
     sudo apt-get install git
 
     sudo apt-get install ctags cscope vim htop
-fi
+}
+
+# Linux
+function install_deps_linux
+{
+    if command -v yum > /dev/null; then
+        install_deps_linux_fedora
+    elif command -v apt-get > /dev/null; then
+        install_deps_linux_ubuntu
+    fi
+}
+
+PLATFORM="$(tr [A-Z] [a-z] <<< $(uname))"
+
+case $PLATFORM in
+    "darwin")
+        install_deps_osx
+        ;;
+    "linux")
+        install_deps_linux
+        ;;
+    *)
+        echo "No dependencies setup for $PLATFORM"
+        ;;
+esac
