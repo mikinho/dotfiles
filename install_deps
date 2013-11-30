@@ -4,7 +4,9 @@
 function install_deps_osx
 {
     # Homebrew
-    ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go/install)"
+    if ! command -v brew > /dev/null; then
+        ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go/install)"
+    fi
 
     brew doctor
     brew install cscope wget lrzsz
