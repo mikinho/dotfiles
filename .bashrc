@@ -70,15 +70,11 @@ if echo "." | grep --no-messages --quiet --exclude-dir="" "." 2> /dev/null ; the
     export GREP_OPTIONS="$GREP_OPTIONS --exclude-dir=\.svn --exclude-dir=\.git"
 fi
 
-# Include these alias here since we are using it within out prompt
-alias git-prompt='git describe --all --exact-match --dirty=* 2>/dev/null | sed -e "s/^heads\///" -e "s/^\(.*\)$/ (\1)/"'
-alias git-isahead='git status -b --porcelain 2> /dev/null | grep --no-messages --quiet "\[ahead \d*\]" && echo "+"'
-
 # Better prompt w/ git integration
 if command -v git > /dev/null ; then
-    export PS1="\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git-prompt) \[\033[37m\]$\[\033[00m\]: "
+    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git status --branch --ignore-submodules --no-column --porcelain --untracked-files=no 2>/dev/null | sed -e '"'"'$!N;s/\\n[^#][^#].*/*/g'"'"' -e '"'"'s/\\.\\.\\..* \\[ahead [0-9]*\\]/+/'"'"' -e '"'"'s/^## \(.*\)/ (\1)/'"'"') \[\033[37m\]$\[\033[00m\]: '
 else
-    export PS1="\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\] \[\033[37m\]$\[\033[00m\]: "
+    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\] \[\033[37m\]$\[\033[00m\]: '
 fi
 
 # Set the default editor to vim.
