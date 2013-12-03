@@ -70,13 +70,6 @@ if echo "." | grep --no-messages --quiet --exclude-dir="" "." 2> /dev/null ; the
     export GREP_OPTIONS="$GREP_OPTIONS --exclude-dir=\.svn --exclude-dir=\.git"
 fi
 
-# Better prompt w/ git integration
-if command -v git > /dev/null ; then
-    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git status --branch --ignore-submodules --no-column --porcelain --untracked-files=no 2>/dev/null | sed -e '"'"'$!N;s/\\n[^#][^#].*/*/g'"'"' -e '"'"'s/\\.\\.\\..* \\[ahead [0-9]*\\]/+/'"'"' -e '"'"'s/^## \(.*\)/ (\1)/'"'"') \[\033[37m\]$\[\033[00m\]: '
-else
-    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\] \[\033[37m\]$\[\033[00m\]: '
-fi
-
 # Set the default editor to vim.
 export EDITOR=vim
 
@@ -92,22 +85,11 @@ shopt -s histappend
 # Autocorrect typos in path names when using `cd`
 shopt -s cdspell
 
-# Export PROMPT_COMMAND only needed once
-export PROMPT_COMMAND
-
-# Append commands to the history every time a prompt is shown, instead of after closing the session.
-# PROMPT_COMMAND='history -a'
-
-# Set iTerm Window\Tab Title
-PROMPT_COMMAND='echo -ne "\033]0;${HOSTNAME}: ${PWD/$HOME/~}\007"'
-
-# Source .bash_aliases,
-if [ -f ~/.bash_aliases ]; then
-    source ~/.bash_aliases
-fi
-
 # set the number of open files to be 1024
 ulimit -S -n 1024
+
+# Source .bash_aliases and .prompt
+__source "$HOME/.bash_aliases" "$HOME/.prompt"
 
 # Source .$PLATFORM, containing os\platform specific bash initializations.
 __source_platform
