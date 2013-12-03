@@ -1,10 +1,13 @@
 # .prompt
 
 # Better prompt w/ git integration
-if command -v git > /dev/null ; then
-    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git status --branch --ignore-submodules --no-column --porcelain --untracked-files=normal 2>/dev/null | sed -e '"'"'3,$d'"'"' -e '"'"'$!N;s/\\n.*/*/'"'"' -e '"'"'s/\\.\\.\\..* \\[ahead [0-9]*\\]/+/'"'"' -e '"'"'s/^## \(.*\)/ (\1)/'"'"') \[\033[37m\]$\[\033[00m\]: '
-else
+GIT_VERSION=$(git version 2>/dev/null | sed 's/.*git version \([0-9]*\.[0-9]*\).*/\1/')
+if [ -z "$GIT_VERSION" ]; then
     export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\] \[\033[37m\]$\[\033[00m\]: '
+elif [[ 1 -eq $(echo "$GIT_VERSION < 1.8" | bc) ]]; then
+    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git describe --dirty=* --all --exact-match | sed -e "s/^.*\/\(.*\)$/ (\1)/") \[\033[37m\]$\[\033[00m\]: '
+else
+    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git status --branch --ignore-submodules --no-column --porcelain --untracked-files=normal 2>/dev/null | sed -e '"'"'3,$d'"'"' -e '"'"'$!N;s/\\n.*/*/'"'"' -e '"'"'s/\\.\\.\\..* \\[ahead [0-9]*\\]/+/'"'"' -e '"'"'s/^## \(.*\)/ (\1)/'"'"') \[\033[37m\]$\[\033[00m\]: '
 fi
 
 # Export PROMPT_COMMAND only needed once
