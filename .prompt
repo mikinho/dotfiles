@@ -2,7 +2,7 @@
 
 # Better prompt w/ git integration
 if command -v git > /dev/null ; then
-    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git status --branch --ignore-submodules --no-column --porcelain --untracked-files=no 2>/dev/null | sed -e '"'"'3,$d'"'"' -e '"'"'$!N;s/\\n.*/*/'"'"' -e '"'"'s/\\.\\.\\..* \\[ahead [0-9]*\\]/+/'"'"' -e '"'"'s/^## \(.*\)/ (\1)/'"'"') \[\033[37m\]$\[\033[00m\]: '
+    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git status --branch --ignore-submodules --no-column --porcelain --untracked-files=normal 2>/dev/null | sed -e '"'"'3,$d'"'"' -e '"'"'$!N;s/\\n.*/*/'"'"' -e '"'"'s/\\.\\.\\..* \\[ahead [0-9]*\\]/+/'"'"' -e '"'"'s/^## \(.*\)/ (\1)/'"'"') \[\033[37m\]$\[\033[00m\]: '
 else
     export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\] \[\033[37m\]$\[\033[00m\]: '
 fi
