@@ -71,13 +71,12 @@ if echo "." | grep --no-messages --quiet --exclude-dir="" "." 2> /dev/null ; the
 fi
 
 # Include these alias here since we are using it within out prompt
-alias git-branch='git branch --no-color 2> /dev/null | sed -e "/^[^*]/d" -e "s/* \(.*\)/\1/"'
-alias git-isdirty='git status --porcelain 2> /dev/null | grep --no-messages --quiet " " && echo "*"'
+alias git-prompt='git describe --all --exact-match --dirty=* 2>/dev/null | sed -e "s/^heads\///" -e "s/^\(.*\)$/ (\1)/"'
 alias git-isahead='git status -b --porcelain 2> /dev/null | grep --no-messages --quiet "\[ahead \d*\]" && echo "+"'
 
 # Better prompt w/ git integration
 if command -v git > /dev/null ; then
-    export PS1="\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]\$([[ -n \$(git branch 2> /dev/null) ]] && echo \" \"\(\$(git-branch)\$(git-isdirty)\$(git-isahead)\)) \[\033[37m\]$\[\033[00m\]: "
+    export PS1="\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git-prompt) \[\033[37m\]$\[\033[00m\]: "
 else
     export PS1="\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\] \[\033[37m\]$\[\033[00m\]: "
 fi
