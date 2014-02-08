@@ -10,7 +10,7 @@ elif [[ 1 -eq $(echo "$GIT_VERSION < 1.8" | bc) ]]; then
     export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git describe --dirty=* --all --exact-match 2>/dev/null | sed -e "s/^.*\/\(.*\)$/ (\1)/") \[\033[37m\]$\[\033[00m\]: '
 else
 	# git 1.8 or above
-    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git status --branch --ignore-submodules --porcelain --untracked-files=normal 2>/dev/null | sed -e '"'"'3,$d'"'"' -e '"'"'$!N;s/\\n.*/*/'"'"' -e '"'"'s/\\.\\.\\..* \\[ahead [0-9]*\\]/+/'"'"' -e '"'"'s/^## \(.*\)/ (\1)/'"'"') \[\033[37m\]$\[\033[00m\]: '
+    export PS1='\[\033[0;35m\]\u@\h\[\033[0;33m\] \w\[\033[00m\]$(git status --branch --ignore-submodules --porcelain --untracked-files=normal 2>/dev/null | sed -e '"'"'3,$d'"'"' -e '"'"'$!N;s/\\n.*/*/'"'"' -e '"'"'s/\\.\\.\\..* \\[ahead [0-9]*\\]/+/'"'"' -e '"'"'s/\\.\\.\\.[^*]*//'"'"' -e '"'"'s/^## \(.*\)/ (\1)/'"'"') \[\033[37m\]$\[\033[00m\]: '
 fi
 
 # Export PROMPT_COMMAND only needed once
