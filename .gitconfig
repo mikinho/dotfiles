@@ -49,6 +49,6 @@
     color = true
     status = false
 [push]
-    default = tracking
+	default = current
 [rebase]
     autosquash = true
