@@ -18,7 +18,7 @@ export AWS_RDS_HOME=$HOME/aws/RDSCli-1.18.001
 export JAVA_HOME=$(/usr/libexec/java_home)
 
 # set PATH so it includes user's private and local bin if it exists
-__add_to_path "$HOME/bin" "/usr/local/git/bin" "/usr/local/bin" "/usr/local/sbin" "$EC2_HOME/bin" "$AWS_RDS_HOME/bin"
+__add_to_path "$HOME/bin" "/usr/local/git/bin" "/usr/local/bin" "/usr/local/sbin" "$EC2_HOME/bin" "$AWS_RDS_HOME/bin" "$HOME/gcc-arm-none-eabi/gcc-arm-none-eabi/bin"
 
 unset __add_to_path
 
