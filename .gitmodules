@@ -1,3 +1,6 @@
 [submodule ".vim"]
 	path = .vim
 	url = https://github.com/mikinho/.vim.git
+[submodule "bash-sensible"]
+	path = bash-sensible
+	url = git@github.com:mikinho/bash-sensible.git

@@ -61,6 +61,9 @@ __source "$HOME/.profile"
 # Enable programmable completion features.
 __source /etc/bash_completion
 
+# Sensible Bash
+__source ~/dotfiles/bash-sensible/sensible.bash
+
 # Make grep more user friendly by highlighting matches and excluding source control folders.
 if grep --help 2>&1 | grep --no-messages --quiet "\-\-color" ; then
     export GREP_OPTIONS="--color=auto"
