@@ -10,6 +10,13 @@ function install_deps_osx
 
     brew doctor
     brew install cscope wget lrzsz
+
+    # Update to BASH 4+
+    if ((BASH_VERSINFO[0] < 4)); then
+        brew install bash
+        grep -q -F '/usr/local/bin/bash' /etc/shells || echo '/usr/local/bin/bash' | sudo tee -a /etc/shells > /dev/null
+        chsh -s /usr/local/bin/bash
+    fi
 }
 
 # Fedora
