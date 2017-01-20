@@ -26,6 +26,7 @@ if [ -d $HOME/android ]
 then
     # Android
     export ANDROID_SDK=$HOME/android/sdk
+    export ANDROID_HOME=$ANDROID_SDK
     export ANDROID_NDK=$HOME/android/ndk
     export ANDROID_VER=17.0.0
 
