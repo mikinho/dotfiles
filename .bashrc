@@ -64,16 +64,6 @@ __source /etc/bash_completion
 # Sensible Bash
 __source ~/dotfiles/bash-sensible/sensible.bash
 
-# Make grep more user friendly by highlighting matches and excluding source control folders.
-if grep --help 2>&1 | grep --no-messages --quiet "\-\-color" ; then
-    export GREP_OPTIONS="--color=auto"
-fi
-
-if echo "." | grep --no-messages --quiet --exclude-dir="" "." 2> /dev/null ; then
-    export GREP_OPTIONS="$GREP_OPTIONS --exclude-dir=\.svn --exclude-dir=\.git"
-fi
-
-# Set the default editor to vim.
 export EDITOR=vim
 
 # Avoid succesive duplicates in the bash command history.
