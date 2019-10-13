@@ -10,15 +10,27 @@ function __add_to_path
     done
 }
 
-# Amazon EC2 CLI tools read the EC2_HOME environment variable
-export EC2_HOME=$HOME/ec2/ec2-api-tools-1.7.2.4
-export AWS_RDS_HOME=$HOME/aws/RDSCli-1.18.001
+# set PATH so it includes user's private and local bin if it exists
+__add_to_path "$HOME/bin" "/usr/local/git/bin" "/usr/local/bin" "/usr/local/sbin"
+
+# Amazon EC2 CLI tools
+if [ -d $HOME/ec2/ec2-api-tools-1.7.2.4 ]
+then
+    export EC2_HOME=$HOME/ec2/ec2-api-tools-1.7.2.4
+    __add_to_path "$EC2_HOME/bin"
+fi
+
+# AWS RDS
+if [ -d $HOME/aws/RDSCli-1.18.001 ]
+then
+    AWS_RDS_HOME=$HOME/aws/RDSCli-1.18.001
+    __add_to_path "$AWS_RDS_HOME/bin"
+fi
 
 # Add JAVA_HOME
-export JAVA_HOME=$(/usr/libexec/java_home)
-
-# set PATH so it includes user's private and local bin if it exists
-__add_to_path "$HOME/bin" "/usr/local/git/bin" "/usr/local/bin" "/usr/local/sbin" "$EC2_HOME/bin" "$AWS_RDS_HOME/bin" "$HOME/gcc-arm-none-eabi/gcc-arm-none-eabi/bin"
+if command -v java_home > /dev/null; then
+    export JAVA_HOME=$(/usr/libexec/java_home)
+fi
 
 unset __add_to_path
 
@@ -34,4 +46,3 @@ then
 fi
 
 export PATH
-
