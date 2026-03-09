@@ -15,24 +15,17 @@ function __source_platform
     local UNAME
     local PLATFORM
 
-    # Source platform specific profile
     UNAME=$(uname)
 
     case $UNAME in
-      "")
-        ;;
-      "Darwin")
-          PLATFORM=.osx
-        ;;
-      "CYGWIN"*)
-          PLATFORM=.windows
-        ;;
-      "MINGW"*)
-          PLATFORM=.windows
-        ;;
-      *)
-          PLATFORM=."$(tr [A-Z] [a-z] <<< "$UNAME")"
-        ;;
+        "")
+            ;;
+        "Darwin")
+            PLATFORM=.mac
+            ;;
+        *)
+            PLATFORM=."$(tr '[:upper:]' '[:lower:]' <<< "$UNAME")"
+            ;;
     esac
 
     __source "$HOME/$PLATFORM"
@@ -40,14 +33,13 @@ function __source_platform
 
 function __source_local
 {
-	local HOSTNAME
+    local HOSTNAME
 
-	if hostname --help 2>&1 | grep --no-messages --quiet "\-\-short"
-	then
-		HOSTNAME=$(hostname --short)
-	else
-		HOSTNAME=$(hostname | sed -e "s/\..*$//")
-	fi
+    if hostname --help 2>&1 | grep --no-messages --quiet "\-\-short"; then
+        HOSTNAME=$(hostname --short)
+    else
+        HOSTNAME=$(hostname | sed -e "s/\..*$//")
+    fi
 
     __source "$HOME/.$HOSTNAME"
 }
@@ -56,20 +48,17 @@ function __source_local
 __source /etc/bashrc
 
 # Source .profile, containing login, non-bash related initializations.
-__source "$HOME/.profile" 
+__source "$HOME/.profile"
 
 # Enable programmable completion features.
 __source /etc/bash_completion
 
-# Sensible Bash
-__source ~/dotfiles/bash-sensible/sensible.bash
-
 export EDITOR=vim
 
-# Avoid succesive duplicates in the bash command history.
+# Avoid successive duplicates in the bash command history.
 export HISTCONTROL=ignoredups
 
- # Case-insensitive globbing (used in pathname expansion)
+# Case-insensitive globbing (used in pathname expansion)
 shopt -s nocaseglob
 
 # Append to the Bash history file, rather than overwriting it
@@ -84,7 +73,7 @@ ulimit -S -n 1024
 # Source .bash_aliases and .prompt
 __source "$HOME/.bash_aliases" "$HOME/.prompt"
 
-# Source .$PLATFORM, containing os\platform specific bash initializations.
+# Source .$PLATFORM, containing os/platform specific bash initializations.
 __source_platform
 
 # Source .$HOSTNAME, containing host specific bash initializations.

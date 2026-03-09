@@ -1,6 +1,8 @@
 [user]
     email = michael@
     name = Michael Welter
+[init]
+    defaultBranch = main
 [color]
     status = auto
     diff = auto
@@ -21,23 +23,19 @@
     unstage = reset HEAD --
     undo = reset --soft HEAD~1
     ff = merge --ff-only
-    compare = !git --no-pager log origin/master..HEAD --abbrev-commit --pretty=oneline --date=relative
+    compare = !git --no-pager log origin/main..HEAD --abbrev-commit --pretty=oneline --date=relative
     cloneall = clone --recursive
     pullall = "!git pull --all --recurse-submodules && git submodule update --recursive"
-    cleanup = !git branch --merged master | grep -v 'master$' | xargs git branch -d
+    cleanup = !git branch --merged main | grep -v 'main$' | xargs git branch -d
     amend = !git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
     orphaned = !git ls-files -z --deleted | xargs -0 git rm
-	last = log -1 HEAD
-	noup = log --graph --decorate --pretty=oneline --abbrev-commit --all @{upstream}^..
-	exec = "!exec "
-    fixsymlinks = "!git submodule foreach --recursive git ls-files -s | awk '/120000/{print $4}' | git update-index --assume-unchanged"
+    last = log -1 HEAD
+    noup = log --graph --decorate --pretty=oneline --abbrev-commit --all @{upstream}^..
+    exec = "!exec "
     failed = ls-files --unmerged --abbrev
-[diff "odf"]
-    textconv=odt2txt
 [format]
     numbered = auto
 [core]
-    legacyheaders = false
     whitespace = -trailing-space
     excludesfile = ~/.gitignore
 [repack]
@@ -49,6 +47,6 @@
     color = true
     status = false
 [push]
-	default = current
+    default = current
 [rebase]
     autosquash = true

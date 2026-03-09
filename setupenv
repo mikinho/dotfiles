@@ -17,8 +17,7 @@ link_dotfiles ()
 {
     local FILE
 
-    if [ -z $1 ]
-    then
+    if [ -z $1 ]; then
         return
     fi
 
@@ -26,51 +25,34 @@ link_dotfiles ()
 
     for FILE in .*
     do
-        if [[ "$FILE" == "." ]]
-        then
+        if [[ "$FILE" == "." ]] || [[ "$FILE" == ".." ]] || [[ "$FILE" == ".git" ]]; then
             continue
         fi
 
-        if [[ "$FILE" == ".." ]]
-        then
-            continue
-        fi
-
-        if [[ "$FILE" == ".git" ]]
-        then
-            continue
-        fi
-
-        if [[ "$FILE" == ".gitmodules" ]]
-        then
-            continue
-        fi
-
-        if [[ "$FILE" == ".ssh" ]]
-        then
+        if [[ "$FILE" == ".ssh" ]]; then
             # make our ~/.ssh if it doesn't exist
             mkdir -p $HOME/.ssh
             chmod 700 $HOME/.ssh
 
             # setup proper permissions
             [[ -e $HOME/.ssh/id_rsa ]] && chmod 600 $HOME/.ssh/id_rsa
-            [[ -e $HOME/.ssh/id_ra.pub ]] && chmod 644 ~/.ssh/id_rsa.pub
+            [[ -e $HOME/.ssh/id_rsa.pub ]] && chmod 644 $HOME/.ssh/id_rsa.pub
+            [[ -e $HOME/.ssh/id_ed25519 ]] && chmod 600 $HOME/.ssh/id_ed25519
+            [[ -e $HOME/.ssh/id_ed25519.pub ]] && chmod 644 $HOME/.ssh/id_ed25519.pub
 
             touch $HOME/.ssh/authorized_keys
             chmod 644 $HOME/.ssh/authorized_keys
             touch $HOME/.ssh/known_hosts
             chmod 644 $HOME/.ssh/known_hosts
-            
+
             # copy any files
             cp -rfv $PWD/$FILE/* $HOME/$FILE/
 
             continue
         fi
 
-        if [ -e "$FILE" ]
-        then
-            if [ -d "$HOME/$FILE" ]
-            then
+        if [ -e "$FILE" ]; then
+            if [ -d "$HOME/$FILE" ]; then
                 rm -rf $HOME/$FILE
             fi
             ln -fsv $PWD/$FILE $HOME/$FILE
@@ -80,18 +62,16 @@ link_dotfiles ()
     popd > /dev/null
 }
 
-if [ "$1" == "--help" ]
-then
+if [ "$1" == "--help" ]; then
     show_usage 64
-fi;
+fi
 
-if [[ "$1" != "--force" && "$1" != "-f" ]]
-then
+if [[ "$1" != "--force" && "$1" != "-f" ]]; then
     echo
     read -p "This may overwrite existing files in your home directory. Are you sure? (Y/n) " -n 1
     echo
     case $REPLY in
-        "[Nn]*")
+        [Nn]*)
             exit 64
             ;;
     esac
@@ -101,8 +81,7 @@ fi
 link_dotfiles ${PWD}
 
 # Copy bin files from this dir
-if [ -d "./bin" ]
-then
+if [ -d "./bin" ]; then
     cp -rfv ${PWD}/bin $HOME
 fi
 
@@ -113,35 +92,26 @@ case $UNAME in
     "")
         ;;
     "Darwin")
-        PLATFORM=osx
-        ;;
-    "CYGWIN"*)
-        PLATFORM=windows
-        ;;
-    "MINGW"*)
-        PLATFORM=windows
+        PLATFORM=mac
         ;;
     *)
-        PLATFORM="$(tr [A-Z] [a-z] <<< "$UNAME")"
+        PLATFORM="$(tr '[:upper:]' '[:lower:]' <<< "$UNAME")"
         ;;
 esac
 
-if [ -d "$PLATFORM" ]
-then
+if [ -d "$PLATFORM" ]; then
     pushd $PLATFORM > /dev/null
 
     # Link dotfiles from platform dir
     link_dotfiles ${PWD}
 
     # Run setupenv if exists
-    if [ -x "./setupenv" ]
-    then
+    if [ -x "./setupenv" ]; then
         ./setupenv
     fi
 
     # Copy bin files from platform dir
-    if [ -d "./bin" ]
-    then
+    if [ -d "./bin" ]; then
         cp -rfv ${PWD}/bin $HOME
     fi
 
