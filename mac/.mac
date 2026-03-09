@@ -1,0 +1,13 @@
+# .mac
+
+# Flush the DNS cache
+alias flushdns="sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder"
+
+# Update macOS, Homebrew, and npm packages
+alias updateall='sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; npm update -g'
+
+# Hide Desktop Icons
+alias hidedesktop='defaults write com.apple.finder CreateDesktop false; killall Finder'
+
+# Show Desktop Icons
+alias showdesktop='defaults write com.apple.finder CreateDesktop true; killall Finder'

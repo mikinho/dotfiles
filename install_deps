@@ -1,57 +1,50 @@
 #!/usr/bin/env bash
 
 # Mac
-function install_deps_osx
+function install_deps_mac
 {
     # Homebrew
     if ! command -v brew > /dev/null; then
-        ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go/install)"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
+
+    # Apple Silicon
+    if [ -d /opt/homebrew ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
     fi
 
     brew doctor
-    brew install cscope wget lrzsz
-
-    # Update to BASH 4+
-    if ((BASH_VERSINFO[0] < 4)); then
-        brew install bash
-        grep -q -F '/usr/local/bin/bash' /etc/shells || echo '/usr/local/bin/bash' | sudo tee -a /etc/shells > /dev/null
-        chsh -s /usr/local/bin/bash
-    fi
+    brew install cscope wget vim git
 }
 
 # Fedora
 function install_deps_linux_fedora
 {
-    sudo yum -y install ctags cscope vim htop
+    sudo dnf -y install ctags cscope vim htop git
 }
 
-# Ubuntu
-function install_deps_linux_ubuntu
+# Ubuntu/Debian
+function install_deps_linux_debian
 {
-    # Latest stable Git release
-    sudo apt-get install python-software-properties
-    sudo add-apt-repository ppa:git-core/ppa
     sudo apt-get update
-    sudo apt-get install git
-
-    sudo apt-get install ctags cscope vim htop
+    sudo apt-get install -y ctags cscope vim htop git
 }
 
 # Linux
 function install_deps_linux
 {
-    if command -v yum > /dev/null; then
+    if command -v dnf > /dev/null; then
         install_deps_linux_fedora
     elif command -v apt-get > /dev/null; then
-        install_deps_linux_ubuntu
+        install_deps_linux_debian
     fi
 }
 
-PLATFORM="$(tr [A-Z] [a-z] <<< $(uname))"
+PLATFORM="$(tr '[:upper:]' '[:lower:]' <<< "$(uname)")"
 
 case $PLATFORM in
     "darwin")
-        install_deps_osx
+        install_deps_mac
         ;;
     "linux")
         install_deps_linux

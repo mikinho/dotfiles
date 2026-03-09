@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Link Sublime Text command-line tool
+SUBL_APP="/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"
+if [ -x "$SUBL_APP" ]; then
+    mkdir -p "$HOME/bin"
+    ln -sf "$SUBL_APP" "$HOME/bin/subl"
+    echo "Linked subl to ~/bin/subl"
+fi

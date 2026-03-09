@@ -1,6 +1,6 @@
 # .bash_aliases
 
-# Bash Functions 
+# Bash Functions
 
 function git-root
 {
@@ -15,35 +15,28 @@ function git-root
     cd - &> /dev/null
 }
 
-# Everyone need some color in their life
+# Everyone needs some color in their life
 export CLICOLOR=1
 export LSCOLORS=GxFxCxDxBxegedabagaced
-export TERM=xterm-color
 
 # Add some easy shortcuts for formatted directory listings
-if command -v man > /dev/null && man ls | grep -q TERM; then
-    export LS_OPTIONS="--color -l"
-
-    alias ll='ls -lF'
-    alias la='ls -alF'
-    alias ls='ls -F'
-else
+if ls --color=auto &>/dev/null; then
     alias ll='ls --color=auto -lF'
     alias la='ls --color=auto -alF'
     alias ls='ls --color=auto -F'
+else
+    alias ll='ls -lF'
+    alias la='ls -alF'
+    alias ls='ls -F'
 fi
 
 alias kp='ps auxwww'
 
-# Strip source control, useful for ensuring deployed code is production only
-alias cleansvn='find . -name ".svn" -exec rm -rf {} \;'
-alias cleangit='find . -name ".git" -exec rm -rf {} \;'
- 
 # git helper aliases. they change the cwd so they need to be outside of .gitconfig
 alias git-top='cd "$(git rev-parse --show-toplevel)"'
 
-# OS X has no `md5sum`, so use `md5` as a fallback
+# macOS has no `md5sum`, so use `md5` as a fallback
 command -v md5sum > /dev/null || alias md5sum="md5"
 
-# OS X has no `sha1sum`, so use `shasum` as a fallback
+# macOS has no `sha1sum`, so use `shasum` as a fallback
 command -v sha1sum > /dev/null || alias sha1sum="shasum"
