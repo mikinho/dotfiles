@@ -16,25 +16,14 @@
 [alias]
     alias = !git config --list | grep 'alias\\.' | sed 's/alias\\.\\([^=]*\\)=\\(.*\\)/\\1\\t=> \\2/' | sort
     lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset %C(cyan)[%an]%Creset {%G?}' --abbrev-commit --date=relative
-    lsd = log --graph --decorate --pretty=oneline --abbrev-commit --date=relative --all
-    this = !touch README.md && touch .gitignore && git init && git add . && git commit -m \"initial commit\"
-    create = "!f(){ mkdir \"$@\" && cd \"$@\" && git this; }; f"
     staged = diff --cached
-    unstaged = diff
     unstage = reset HEAD --
     undo = reset --soft HEAD~1
-    ff = merge --ff-only
     compare = !git --no-pager log origin/main..HEAD --abbrev-commit --pretty=oneline --date=relative
-    cloneall = clone --recursive
-    pullall = "!git pull --all --recurse-submodules && git submodule update --recursive"
     cleanup = !git branch --merged main | grep -v 'main$' | xargs git branch -d
     amend = !git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
-    orphaned = !git ls-files -z --deleted | xargs -0 git rm
     last = log -1 HEAD
-    noup = log --graph --decorate --pretty=oneline --abbrev-commit --all @{upstream}^..
-    exec = "!exec "
-    failed = ls-files --unmerged --abbrev
-    email = config user.email 
+    email = config user.email
 [format]
     numbered = auto
 [core]

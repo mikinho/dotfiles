@@ -50,6 +50,29 @@ setopt NO_CASE_GLOB
 # Autocorrect typos in path names when using `cd`
 setopt CORRECT
 
+# Navigation
+setopt AUTO_CD              # type a directory name to cd into it
+setopt AUTO_PUSHD           # cd pushes onto dir stack (cd -2, cd -3, etc.)
+setopt PUSHD_SILENT         # don't print dir stack on every cd
+
+# Key bindings
+bindkey '\eb' backward-word             # Alt+Left  (Alt+b)
+bindkey '\ef' forward-word              # Alt+Right (Alt+f)
+bindkey '\e[1;3D' backward-word         # Alt+Left  (escape sequence)
+bindkey '\e[1;3C' forward-word          # Alt+Right (escape sequence)
+
+# Prefix-based history search (type partial command, then up/down)
+autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+bindkey '\e[A' up-line-or-beginning-search      # Up
+bindkey '\e[B' down-line-or-beginning-search    # Down
+
+# Edit current command in vim with Ctrl+x Ctrl+e
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '^x^e' edit-command-line
+
 # Source .bash_aliases (compatible with zsh)
 __source "$HOME/.bash_aliases"
 
