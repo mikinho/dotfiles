@@ -53,6 +53,14 @@ link_dotfiles ()
             touch "$HOME/.ssh/known_hosts"
             chmod 644 "$HOME/.ssh/known_hosts"
 
+            # Generate allowed_signers from local signing key for git signature verification
+            local EMAIL
+            EMAIL=$(git config user.email 2>/dev/null)
+            if [ -n "$EMAIL" ] && [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
+                echo "$EMAIL $(cat "$HOME/.ssh/id_ed25519.pub")" > "$HOME/.ssh/allowed_signers"
+                chmod 644 "$HOME/.ssh/allowed_signers"
+            fi
+
             # copy any files
             if cp -rfv "$PWD/$FILE/"* "$HOME/$FILE/"; then
                 ((++LINKED))

@@ -15,7 +15,7 @@
     remote = green
 [alias]
     alias = !git config --list | grep 'alias\\.' | sed 's/alias\\.\\([^=]*\\)=\\(.*\\)/\\1\\t=> \\2/' | sort
-    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset' --abbrev-commit --date=relative
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset %C(cyan)[%an]%Creset {%G?}' --abbrev-commit --date=relative
     lsd = log --graph --decorate --pretty=oneline --abbrev-commit --date=relative --all
     this = !touch README.md && touch .gitignore && git init && git add . && git commit -m \"initial commit\"
     create = "!f(){ mkdir \"$@\" && cd \"$@\" && git this; }; f"
@@ -34,6 +34,7 @@
     noup = log --graph --decorate --pretty=oneline --abbrev-commit --all @{upstream}^..
     exec = "!exec "
     failed = ls-files --unmerged --abbrev
+    email = config user.email 
 [format]
     numbered = auto
 [core]
@@ -56,3 +57,5 @@
     signoff = true
 [gpg]
     format = ssh
+[gpg "ssh"]
+    allowedSignersFile = ~/.ssh/allowed_signers
