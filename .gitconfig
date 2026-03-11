@@ -1,6 +1,7 @@
 [user]
     email = michael@
     name = Michael Welter
+    signingkey = ~/.ssh/id_ed25519.pub
 [init]
     defaultBranch = main
 [color]
@@ -50,3 +51,8 @@
     default = current
 [rebase]
     autosquash = true
+[commit]
+    gpgsign = true
+    signoff = true
+[gpg]
+    format = ssh
