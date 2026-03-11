@@ -1,0 +1,18 @@
+{
+    "tagname-lowercase": true,
+    "attr-lowercase": true,
+    "attr-no-duplication": true,
+    "spec-char-escape": true,
+    "src-not-empty": true,
+    "alt-require": true,
+    "doctype-first": false,
+    "title-require": false,
+    "space-tab-mixed-disabled": true,
+    "id-unique": false,
+    "attr-unsafe-chars": true,
+    "style-disabled": true,
+    "script-disabled": false,
+    "img-alt-require": true,
+    "input-requires": true,
+    "fieldset-requires": true
+}

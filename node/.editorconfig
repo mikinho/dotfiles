@@ -1,0 +1,41 @@
+# .editorconfig
+# Ensures consistent editor behavior across IDEs and operating systems
+
+root = true
+
+# Default settings for all files
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+max_line_length = 120
+
+# Match Prettier settings
+quote_type = double
+semi = true
+
+# JSON and YAML files — maintain 4-space indent for readability
+[*.{json,yml,yaml}]
+indent_style = space
+indent_size = 4
+
+# Markdown files — 4-space indent, but don't trim whitespace (important for fenced code)
+[*.md]
+trim_trailing_whitespace = false
+
+# Shell scripts
+[*.{sh,bash}]
+indent_style = space
+indent_size = 4
+
+# Python files — follow PEP 8 (4 spaces)
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Makefiles require tabs
+[Makefile]
+indent_style = tab

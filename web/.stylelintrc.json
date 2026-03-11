@@ -1,0 +1,10 @@
+{
+    "extends": ["stylelint-config-standard-scss", "stylelint-config-prettier-scss"],
+    "plugins": ["@stylistic/stylelint-plugin"],
+    "rules": {
+        "selector-max-id": 1,
+        "no-descending-specificity": null,
+        "@stylistic/selector-combinator-space-before": "always",
+        "@stylistic/selector-combinator-space-after": "always"
+    }
+}
