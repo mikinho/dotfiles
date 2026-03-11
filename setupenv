@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+LINKED=0
+FAILED=0
+ERRORS=()
+
 show_usage ()
 {
     echo
@@ -10,18 +14,18 @@ show_usage ()
     echo "  force        Prevents confirmation prompt to override existing files"
     echo
 
-    [ ! -z "$1" ] && exit $1
+    [ ! -z "$1" ] && exit "$1"
 }
 
 link_dotfiles ()
 {
     local FILE
 
-    if [ -z $1 ]; then
+    if [ -z "$1" ]; then
         return
     fi
 
-    pushd $1 > /dev/null
+    pushd "$1" > /dev/null || return
 
     for FILE in .*
     do
@@ -31,35 +35,49 @@ link_dotfiles ()
 
         if [[ "$FILE" == ".ssh" ]]; then
             # make our ~/.ssh if it doesn't exist
-            mkdir -p $HOME/.ssh
-            chmod 700 $HOME/.ssh
+            if ! mkdir -p "$HOME/.ssh"; then
+                ERRORS+=("Failed to create $HOME/.ssh")
+                ((++FAILED))
+                continue
+            fi
+            chmod 700 "$HOME/.ssh"
 
-            # setup proper permissions
-            [[ -e $HOME/.ssh/id_rsa ]] && chmod 600 $HOME/.ssh/id_rsa
-            [[ -e $HOME/.ssh/id_rsa.pub ]] && chmod 644 $HOME/.ssh/id_rsa.pub
-            [[ -e $HOME/.ssh/id_ed25519 ]] && chmod 600 $HOME/.ssh/id_ed25519
-            [[ -e $HOME/.ssh/id_ed25519.pub ]] && chmod 644 $HOME/.ssh/id_ed25519.pub
+            # setup proper permissions on existing keys
+            [[ -e "$HOME/.ssh/id_rsa" ]] && chmod 600 "$HOME/.ssh/id_rsa"
+            [[ -e "$HOME/.ssh/id_rsa.pub" ]] && chmod 644 "$HOME/.ssh/id_rsa.pub"
+            [[ -e "$HOME/.ssh/id_ed25519" ]] && chmod 600 "$HOME/.ssh/id_ed25519"
+            [[ -e "$HOME/.ssh/id_ed25519.pub" ]] && chmod 644 "$HOME/.ssh/id_ed25519.pub"
 
-            touch $HOME/.ssh/authorized_keys
-            chmod 644 $HOME/.ssh/authorized_keys
-            touch $HOME/.ssh/known_hosts
-            chmod 644 $HOME/.ssh/known_hosts
+            touch "$HOME/.ssh/authorized_keys"
+            chmod 644 "$HOME/.ssh/authorized_keys"
+            touch "$HOME/.ssh/known_hosts"
+            chmod 644 "$HOME/.ssh/known_hosts"
 
             # copy any files
-            cp -rfv $PWD/$FILE/* $HOME/$FILE/
+            if cp -rfv "$PWD/$FILE/"* "$HOME/$FILE/"; then
+                ((++LINKED))
+            else
+                ERRORS+=("Failed to copy $FILE")
+                ((++FAILED))
+            fi
 
             continue
         fi
 
         if [ -e "$FILE" ]; then
             if [ -d "$HOME/$FILE" ]; then
-                rm -rf $HOME/$FILE
+                rm -rf "$HOME/$FILE"
             fi
-            ln -fsv $PWD/$FILE $HOME/$FILE
+            if ln -fsv "$PWD/$FILE" "$HOME/$FILE"; then
+                ((++LINKED))
+            else
+                ERRORS+=("Failed to link $FILE")
+                ((++FAILED))
+            fi
         fi
     done
 
-    popd > /dev/null
+    popd > /dev/null || return
 }
 
 if [ "$1" == "--help" ]; then
@@ -78,11 +96,11 @@ if [[ "$1" != "--force" && "$1" != "-f" ]]; then
 fi
 
 # Link dotfiles from this dir
-link_dotfiles ${PWD}
+link_dotfiles "${PWD}"
 
 # Copy bin files from this dir
 if [ -d "./bin" ]; then
-    cp -rfv ${PWD}/bin $HOME
+    cp -rfv "${PWD}/bin" "$HOME"
 fi
 
 # Source platform specific profile
@@ -100,10 +118,10 @@ case $UNAME in
 esac
 
 if [ -d "$PLATFORM" ]; then
-    pushd $PLATFORM > /dev/null
+    pushd "$PLATFORM" > /dev/null || exit 1
 
     # Link dotfiles from platform dir
-    link_dotfiles ${PWD}
+    link_dotfiles "${PWD}"
 
     # Run setupenv if exists
     if [ -x "./setupenv" ]; then
@@ -112,8 +130,21 @@ if [ -d "$PLATFORM" ]; then
 
     # Copy bin files from platform dir
     if [ -d "./bin" ]; then
-        cp -rfv ${PWD}/bin $HOME
+        cp -rfv "${PWD}/bin" "$HOME"
     fi
 
-    popd > /dev/null
+    popd > /dev/null || true
+fi
+
+# Summary
+echo
+echo "Done: $LINKED linked, $FAILED failed"
+
+if [ ${#ERRORS[@]} -gt 0 ]; then
+    echo
+    echo "Errors:"
+    for err in "${ERRORS[@]}"; do
+        echo "  - $err"
+    done
+    exit 1
 fi

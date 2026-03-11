@@ -3,8 +3,14 @@
 function __add_to_path
 {
     while (( "$#" )); do
-        if [ -d "$1" ] && [[ "$PATH" != "$1":* ]]; then
-            PATH="$1:$PATH"
+        if [ -d "$1" ]; then
+            case ":$PATH:" in
+                *:"$1":*)
+                    ;;
+                *)
+                    PATH="$1:$PATH"
+                    ;;
+            esac
         fi
         shift
     done

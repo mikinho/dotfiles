@@ -79,6 +79,9 @@ __source_platform
 # Source .$HOSTNAME, containing host specific bash initializations.
 __source_local
 
+# Source .bashrc.local for machine-specific config not tracked by git
+__source "$HOME/.bashrc.local"
+
 unset __source
 unset __source_platform
 unset __source_local

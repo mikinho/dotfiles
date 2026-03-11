@@ -57,18 +57,30 @@ __source "$HOME/.bash_aliases"
 if command -v git &>/dev/null; then
     function __git_prompt
     {
-        local branch
-        branch=$(git symbolic-ref --short HEAD 2>/dev/null)
-        if [ -z "$branch" ]; then
+        local status_output
+        status_output=$(git status --branch --porcelain --ignore-submodules --untracked-files=normal 2>/dev/null)
+        if [ -z "$status_output" ]; then
             return
         fi
 
+        local header
+        header=$(head -1 <<< "$status_output")
+
+        # Extract branch name (strip "## " prefix and any tracking info)
+        local branch
+        branch=$(sed -e 's/^## //' -e 's/\.\.\..*//' <<< "$header")
+
         local dirty=""
-        if [ -n "$(git status --porcelain --ignore-submodules 2>/dev/null)" ]; then
+        if [ "$(wc -l <<< "$status_output")" -gt 1 ]; then
             dirty="*"
         fi
 
-        echo " (${branch}${dirty})"
+        local ahead=""
+        if grep -q '\[ahead [0-9]*\]' <<< "$header"; then
+            ahead="+"
+        fi
+
+        echo " (${branch}${dirty}${ahead})"
     }
 
     setopt PROMPT_SUBST
@@ -85,6 +97,9 @@ precmd () {
 # Source platform and host specific config
 __source_platform
 __source_local
+
+# Source .zshrc.local for machine-specific config not tracked by git
+__source "$HOME/.zshrc.local"
 
 # Enable completion
 autoload -Uz compinit && compinit
