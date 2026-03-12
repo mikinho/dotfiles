@@ -9,7 +9,6 @@ Supports both **bash** and **zsh** with a shared config architecture that source
 
 ```bash
 git clone https://github.com/mikinho/dotfiles.git && cd dotfiles
-./install_deps      # install system dependencies (homebrew, vim, git, etc.)
 ./setupenv          # symlink dotfiles to $HOME
 ```
 
@@ -20,7 +19,6 @@ Use `./setupenv -f` to skip the confirmation prompt.
 | Path | Purpose |
 |------|---------|
 | `setupenv` | Symlinks dotfiles to `$HOME`, copies SSH config, runs platform setup |
-| `install_deps` | Installs packages via Homebrew (macOS) or apt/dnf (Linux) |
 | `mac/` | macOS-specific aliases and setup (Sublime Text CLI, DNS flush, etc.) |
 | `linux/` | Linux-specific config |
 | `.profile` | Shared login shell config (PATH setup, JAVA_HOME) |
@@ -30,6 +28,21 @@ Use `./setupenv -f` to skip the confirmation prompt.
 | `.gitconfig` | Git aliases, color settings, and workflow defaults |
 | `.vimrc` | Vim defaults (4-space tabs, syntax, line numbers, key mappings) |
 | `.editorconfig` | Editor-agnostic formatting rules |
+
+## Project Scaffolding
+
+Starter configs for new projects. Copy what you need:
+
+```bash
+cp -r ~/dotfiles/web/. . && cp ~/dotfiles/git/.gitignore-web .gitignore
+```
+
+| Path | Purpose |
+|------|---------|
+| `web/` | Web app configs (eslint, prettier, stylelint, htmlhint, editorconfig) |
+| `node/` | npm library configs (eslint, prettier, npmignore, editorconfig) |
+| `git/` | Gitignore templates (`.gitignore-web`, `.gitignore-node`, `.gitignore-python`) |
+| `py/` | Python project configs (ruff via pyproject.toml, editorconfig) |
 
 ## Customization
 
@@ -46,15 +59,12 @@ Some highlights from `.gitconfig`:
 
 | Alias | Command |
 |-------|---------|
-| `git lg` | Pretty graph log with colors |
-| `git lsd` | Decorated log with all branches |
+| `git lg` | Pretty graph log with author and signature status |
 | `git staged` / `git unstaged` | Diff shortcuts for staged/unstaged changes |
 | `git undo` | Soft reset last commit |
-| `git ff` | Fast-forward only merge |
 | `git cleanup` | Delete branches already merged into main |
 | `git amend` | Amend with previous commit message |
 | `git compare` | Show commits ahead of origin/main |
-| `git this` | Init a new repo with README.md and .gitignore |
 | `git alias` | List all git aliases |
 
 ## Note on Git Email
