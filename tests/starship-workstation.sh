@@ -1,0 +1,288 @@
+#!/bin/sh
+
+set -eu
+
+PROGRAM_NAME=${0##*/}
+SCRIPT_DIRECTORY=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+REPOSITORY_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIRECTORY/.." && pwd)
+STARSHIP_INSTALL=$REPOSITORY_ROOT/mac/starship/install
+STARSHIP_SETUP=$REPOSITORY_ROOT/mac/starship/setup
+CONFIG_SOURCE=$REPOSITORY_ROOT/mac/starship/starship.toml
+TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-starship.XXXXXX")
+FAKE_BIN=$TEST_ROOT/fake-bin
+FAKE_BREW_STATE=$TEST_ROOT/brew-state
+TEST_HOME=$TEST_ROOT/home
+
+cleanup() {
+    if [ -d "$TEST_ROOT" ]; then
+        rm -rf -- "$TEST_ROOT"
+    fi
+}
+
+fail() {
+    printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
+    exit 1
+}
+
+expect_failure() {
+    expected_message=$1
+    shift
+    if "$@" >"$TEST_ROOT/command.stdout" 2>"$TEST_ROOT/command.stderr"; then
+        fail "command unexpectedly succeeded: $*"
+    fi
+    grep -F -- "$expected_message" "$TEST_ROOT/command.stderr" >/dev/null \
+        || fail "command failed without expected message: $expected_message"
+}
+
+run_with_fixture() {
+    env \
+        "FAKE_BREW_STATE=$FAKE_BREW_STATE" \
+        "FAKE_STARSHIP_REFERENCE=$CONFIG_SOURCE" \
+        "HOME=$TEST_HOME" \
+        "XDG_CONFIG_HOME=$TEST_HOME/.config" \
+        "PATH=$FAKE_BIN:$PATH" \
+        "$@"
+}
+
+trap cleanup EXIT HUP INT TERM
+
+[ -x "$STARSHIP_INSTALL" ] || fail "Starship installer is not executable"
+[ -x "$STARSHIP_SETUP" ] || fail "Starship setup is not executable"
+[ -f "$CONFIG_SOURCE" ] && [ ! -L "$CONFIG_SOURCE" ] \
+    || fail "Starship configuration source is not a regular file"
+
+mkdir -p \
+    "$FAKE_BIN" \
+    "$FAKE_BREW_STATE" \
+    "$TEST_HOME/Library/Fonts"
+
+cat >"$FAKE_BIN/uname" <<'EOF'
+#!/bin/sh
+
+[ "$#" -eq 1 ] && [ "$1" = -s ] || exit 1
+printf 'Darwin\n'
+EOF
+
+cat >"$FAKE_BIN/brew" <<'EOF'
+#!/bin/sh
+
+set -eu
+
+case "${1:-}" in
+    list)
+        [ "$#" -eq 4 ] && [ "$3" = --versions ] || exit 1
+        case "$2" in
+            --formula | --cask) ;;
+            *) exit 1 ;;
+        esac
+        if [ -f "$FAKE_BREW_STATE/$4" ]; then
+            printf '%s 1.0.0\n' "$4"
+            exit 0
+        fi
+        exit 1
+        ;;
+    install)
+        case "$#:$2" in
+            2:starship)
+                package_name=$2
+                ;;
+            3:--cask)
+                package_name=$3
+                ;;
+            *) exit 1 ;;
+        esac
+        [ ! -f "$FAKE_BREW_STATE/$package_name" ] \
+            || { printf 'duplicate package install: %s\n' "$package_name" >&2; exit 1; }
+        : >"$FAKE_BREW_STATE/$package_name"
+        ;;
+    *)
+        printf 'unexpected fake brew invocation: %s\n' "$*" >&2
+        exit 1
+        ;;
+esac
+EOF
+
+cat >"$FAKE_BIN/starship" <<'EOF'
+#!/bin/sh
+
+set -eu
+
+emit_config() {
+    config_path=$1
+    output_defaults=$2
+    [ -f "$config_path" ] || exit 1
+
+    awk -v output_defaults="$output_defaults" '
+        /^[[:space:]]*($|#)/ { next }
+        /^\[/ {
+            section = $0
+            print
+            next
+        }
+        index($0, "=") {
+            if (output_defaults != "yes") {
+                print
+                next
+            }
+            key = $0
+            sub(/[[:space:]]*=.*/, "", key)
+            if (section == "[aws]" && key == "symbol") {
+                print "symbol = \"__fake_default__\""
+            } else {
+                print key " = \"__default__\""
+            }
+        }
+    ' "$config_path"
+}
+
+case "${1:-}" in
+    --version)
+        [ "$#" -eq 1 ] || exit 1
+        printf 'starship 1.0.0\n'
+        ;;
+    print-config)
+        if [ "${FAKE_STARSHIP_REJECT_TARGET:-no}" = yes ] \
+            && [ "${STARSHIP_CONFIG:-}" = "$HOME/.config/starship.toml" ]; then
+            exit 1
+        fi
+        if [ "$#" -eq 2 ] && [ "$2" = --default ]; then
+            emit_config "$FAKE_STARSHIP_REFERENCE" yes
+        elif [ "$#" -eq 1 ]; then
+            config_path=${STARSHIP_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/starship.toml}
+            emit_config "$config_path" no
+        else
+            exit 1
+        fi
+        ;;
+    *)
+        printf 'unexpected fake Starship invocation: %s\n' "$*" >&2
+        exit 1
+        ;;
+esac
+EOF
+
+chmod 0755 "$FAKE_BIN/uname" "$FAKE_BIN/brew" "$FAKE_BIN/starship"
+: >"$TEST_HOME/Library/Fonts/JetBrainsMonoNerdFont-Regular.ttf"
+
+"$STARSHIP_INSTALL" --help >/dev/null
+"$STARSHIP_SETUP" --help >/dev/null
+run_with_fixture "$STARSHIP_INSTALL" --check >/dev/null
+run_with_fixture "$STARSHIP_SETUP" --check >/dev/null
+
+grep -F "eval \"\$(starship init zsh)\"" "$REPOSITORY_ROOT/.zshrc" >/dev/null \
+    || fail "zsh does not initialize Starship"
+schema_key=$(printf '"\044schema"')
+if grep -F "$schema_key" "$CONFIG_SOURCE" >/dev/null \
+    || grep -F '[battery]' "$CONFIG_SOURCE" >/dev/null \
+    || grep -F '[nodejs]' "$CONFIG_SOURCE" >/dev/null; then
+    fail "repository config retains a known default-equivalent setting"
+fi
+
+run_with_fixture "$STARSHIP_INSTALL" --plan >"$TEST_ROOT/install.plan"
+grep -F 'install starship' "$TEST_ROOT/install.plan" >/dev/null \
+    || fail "install plan omitted the Starship formula"
+grep -F 'install --cask font-jetbrains-mono-nerd-font' \
+    "$TEST_ROOT/install.plan" >/dev/null \
+    || fail "install plan omitted the Nerd Font cask"
+
+run_with_fixture "$STARSHIP_INSTALL" >/dev/null
+[ -f "$FAKE_BREW_STATE/starship" ] \
+    || fail "installer did not install the Starship formula"
+[ -f "$FAKE_BREW_STATE/font-jetbrains-mono-nerd-font" ] \
+    || fail "installer did not install the Nerd Font cask"
+run_with_fixture "$STARSHIP_INSTALL" --verify >/dev/null
+run_with_fixture "$STARSHIP_INSTALL" >/dev/null
+
+run_with_fixture "$STARSHIP_SETUP" --plan >"$TEST_ROOT/setup.plan"
+grep -F "$TEST_HOME/.config/starship.toml" "$TEST_ROOT/setup.plan" >/dev/null \
+    || fail "setup plan omitted the canonical config target"
+run_with_fixture "$STARSHIP_SETUP" >/dev/null
+cmp -s "$CONFIG_SOURCE" "$TEST_HOME/.config/starship.toml" \
+    || fail "setup did not install the repository config"
+if stat -f '%Lp' "$TEST_HOME/.config/starship.toml" >/dev/null 2>&1; then
+    installed_mode=$(stat -f '%Lp' "$TEST_HOME/.config/starship.toml")
+else
+    installed_mode=$(stat -c '%a' "$TEST_HOME/.config/starship.toml")
+fi
+[ "$installed_mode" = 644 ] \
+    || fail "installed config does not have mode 0644"
+run_with_fixture "$STARSHIP_SETUP" --verify >/dev/null
+run_with_fixture "$STARSHIP_SETUP" >/dev/null
+
+printf 'local workstation drift\n' >"$TEST_HOME/.config/starship.toml"
+expect_failure \
+    'a differing Starship config exists' \
+    run_with_fixture "$STARSHIP_SETUP" --plan
+[ "$(cat "$TEST_HOME/.config/starship.toml")" = 'local workstation drift' ] \
+    || fail "failed plan changed the existing config"
+run_with_fixture "$STARSHIP_SETUP" --plan --replace-existing \
+    >"$TEST_ROOT/replace.plan"
+grep -F 'preserve existing config' "$TEST_ROOT/replace.plan" >/dev/null \
+    || fail "replacement plan omitted persistent backup"
+
+expect_failure \
+    'Starship rejected the configuration' \
+    run_with_fixture env FAKE_STARSHIP_REJECT_TARGET=yes \
+        "$STARSHIP_SETUP" --replace-existing
+[ "$(cat "$TEST_HOME/.config/starship.toml")" = 'local workstation drift' ] \
+    || fail "failed replacement did not restore the existing config"
+
+run_with_fixture "$STARSHIP_SETUP" --replace-existing >/dev/null
+backup_file=$(find "$TEST_HOME/.config/starship/backups" \
+    -type f -name starship.toml -print | head -n 1)
+[ -n "$backup_file" ] \
+    || fail "replacement did not preserve the prior config"
+grep -F 'local workstation drift' "$backup_file" >/dev/null \
+    || fail "persistent backup does not contain the prior config"
+run_with_fixture "$STARSHIP_SETUP" --verify >/dev/null
+
+custom_config=$TEST_HOME/custom/starship.toml
+run_with_fixture env STARSHIP_CONFIG="$custom_config" \
+    "$STARSHIP_SETUP" --plan >"$TEST_ROOT/custom.plan"
+grep -F "$custom_config" "$TEST_ROOT/custom.plan" >/dev/null \
+    || fail "setup plan ignored STARSHIP_CONFIG"
+run_with_fixture env STARSHIP_CONFIG="$custom_config" \
+    "$STARSHIP_SETUP" >/dev/null
+run_with_fixture env STARSHIP_CONFIG="$custom_config" \
+    "$STARSHIP_SETUP" --verify >/dev/null
+
+ln -s /etc/passwd "$TEST_HOME/unsafe-starship.toml"
+expect_failure \
+    'configuration target must be a regular file' \
+    run_with_fixture env STARSHIP_CONFIG="$TEST_HOME/unsafe-starship.toml" \
+        "$STARSHIP_SETUP" --plan
+rm -f -- "$TEST_HOME/unsafe-starship.toml"
+
+redundant_root=$TEST_ROOT/redundant-repository
+mkdir -p "$redundant_root/mac/starship"
+cp "$STARSHIP_SETUP" "$redundant_root/mac/starship/setup"
+awk '
+    /^\[aws\]$/ { in_aws = 1 }
+    in_aws && /^symbol[[:space:]]*=/ {
+        print "symbol = \"__fake_default__\""
+        in_aws = 0
+        next
+    }
+    { print }
+' "$CONFIG_SOURCE" >"$redundant_root/mac/starship/starship.toml"
+chmod 0755 "$redundant_root/mac/starship/setup"
+expect_failure \
+    'default-equivalent, unknown, or non-scalar setting' \
+    run_with_fixture "$redundant_root/mac/starship/setup" --check
+
+unsafe_root=$TEST_ROOT/unsafe-repository
+mkdir -p "$unsafe_root/mac/starship"
+cp "$STARSHIP_SETUP" "$unsafe_root/mac/starship/setup"
+chmod 0755 "$unsafe_root/mac/starship/setup"
+ln -s /etc/passwd "$unsafe_root/mac/starship/starship.toml"
+expect_failure \
+    'repository config must be a non-empty regular file' \
+    run_with_fixture "$unsafe_root/mac/starship/setup" --check
+
+HOME=$TEST_HOME "$REPOSITORY_ROOT/mac/setupenv" >"$TEST_ROOT/mac-setupenv.out"
+grep -F '/starship/install --plan' "$TEST_ROOT/mac-setupenv.out" >/dev/null \
+    || fail "generic macOS bootstrap omitted the Starship install plan"
+grep -F '/starship/setup --plan' "$TEST_ROOT/mac-setupenv.out" >/dev/null \
+    || fail "generic macOS bootstrap omitted the Starship setup plan"
+
+printf 'Validated Starship workstation installation, minimal overrides, and migration boundaries.\n'

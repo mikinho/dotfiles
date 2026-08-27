@@ -10,10 +10,13 @@ if [ -x "$SUBL_APP" ]; then
     echo "Linked subl to ~/bin/subl"
 fi
 
-# Ghostty is opt-in because config convergence may require explicit drift
-# replacement. Keep Ghostty package and config changes out of the generic
-# platform bootstrap and point to the component's review-first workflow.
+# Workstation components are opt-in because config convergence may require
+# explicit drift replacement. Keep package and config changes out of the
+# generic platform bootstrap and point to each review-first workflow.
 printf '%s\n' \
     "Ghostty workstation setup is available separately:" \
     "  $SCRIPT_DIRECTORY/ghostty/install --plan" \
-    "  $SCRIPT_DIRECTORY/ghostty/setup --plan"
+    "  $SCRIPT_DIRECTORY/ghostty/setup --plan" \
+    "Starship workstation setup is available separately:" \
+    "  $SCRIPT_DIRECTORY/starship/install --plan" \
+    "  $SCRIPT_DIRECTORY/starship/setup --plan"

@@ -14,11 +14,11 @@ git clone https://github.com/mikinho/dotfiles.git && cd dotfiles
 
 Use `./setupenv -f` to skip the confirmation prompt.
 
-On macOS, Ghostty workstation setup is an explicit, review-first component.
-The generic bootstrap prints its plan commands but does not install software or
-migrate terminal configuration automatically. Start with
-`mac/ghostty/install --plan` and `mac/ghostty/setup --plan`; see
-[`mac/ghostty/README.md`](mac/ghostty/README.md) for the apply workflow.
+On macOS, Ghostty and Starship workstation setup are explicit, review-first
+components. The generic bootstrap prints their plan commands but does not
+install software or migrate configuration automatically. See the focused
+[`mac/ghostty/README.md`](mac/ghostty/README.md) and
+[`mac/starship/README.md`](mac/starship/README.md) workflows before applying.
 
 ## Structure
 
@@ -27,6 +27,7 @@ migrate terminal configuration automatically. Start with
 | `setupenv` | Symlinks dotfiles to `$HOME`, copies SSH config, runs platform setup |
 | `mac/` | macOS-specific aliases and setup (Sublime Text CLI, DNS flush, etc.) |
 | `mac/ghostty/` | Ghostty, Nerd Font, and conflict-safe config setup for macOS |
+| `mac/starship/` | Starship, minimal prompt overrides, and conflict-safe setup for macOS |
 | `linux/` | Linux-specific config |
 | `.profile` | Shared login shell config (PATH setup, JAVA_HOME) |
 | `.bashrc` / `.zshrc` | Interactive shell config with git prompt, aliases, history |
@@ -53,12 +54,14 @@ cp -r ~/dotfiles/web/. . && cp ~/dotfiles/git/.gitignore-web .gitignore
 
 ## Validation
 
-Run the focused Ghostty workstation test after changing that component:
+Run the focused workstation tests after changing either component:
 
 ```bash
 shellcheck mac/ghostty/install mac/ghostty/setup \
-    tests/ghostty-workstation.sh mac/setupenv
+    mac/starship/install mac/starship/setup \
+    tests/ghostty-workstation.sh tests/starship-workstation.sh mac/setupenv
 tests/ghostty-workstation.sh
+tests/starship-workstation.sh
 ```
 
 ## Customization

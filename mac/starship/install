@@ -1,0 +1,212 @@
+#!/bin/sh
+
+set -eu
+
+PROGRAM_NAME=${0##*/}
+SCRIPT_DIRECTORY=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+SETUP_SCRIPT=$SCRIPT_DIRECTORY/setup
+CONFIG_SOURCE=$SCRIPT_DIRECTORY/starship.toml
+
+STARSHIP_FORMULA=starship
+FONT_CASK=font-jetbrains-mono-nerd-font
+
+MODE=install
+BREW_BINARY=
+STARSHIP_BINARY=
+
+usage() {
+    cat <<EOF
+Usage:
+  $PROGRAM_NAME
+  $PROGRAM_NAME --plan
+  $PROGRAM_NAME --check
+  $PROGRAM_NAME --verify
+
+Installs Starship and JetBrains Mono Nerd Font with Homebrew on macOS. Existing
+packages are retained at their installed versions; this script does not perform
+implicit upgrades. --plan prints missing-package actions without changing the
+workstation, --check validates repository assets, and --verify validates the
+installed formula, font cask, and repository configuration.
+EOF
+}
+
+fail() {
+    printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
+    exit 1
+}
+
+print_command() {
+    printf '+'
+    for command_argument do
+        printf ' %s' "$command_argument"
+    done
+    printf '\n'
+}
+
+validate_repository_sources() {
+    [ -f "$CONFIG_SOURCE" ] && [ ! -L "$CONFIG_SOURCE" ] \
+        || fail "repository config must be a regular file: $CONFIG_SOURCE"
+    [ -f "$SETUP_SCRIPT" ] && [ -x "$SETUP_SCRIPT" ] \
+        && [ ! -L "$SETUP_SCRIPT" ] \
+        || fail "repository setup must be an executable regular file: $SETUP_SCRIPT"
+    "$SETUP_SCRIPT" --check >/dev/null
+}
+
+validate_macos() {
+    [ "$(uname -s)" = Darwin ] \
+        || fail "Starship workstation installation is supported only on macOS"
+}
+
+resolve_brew() {
+    if command -v brew >/dev/null 2>&1; then
+        BREW_BINARY=$(command -v brew)
+    elif [ -x /opt/homebrew/bin/brew ]; then
+        BREW_BINARY=/opt/homebrew/bin/brew
+    elif [ -x /usr/local/bin/brew ]; then
+        BREW_BINARY=/usr/local/bin/brew
+    else
+        fail "Homebrew is required; install it from https://brew.sh/ and rerun"
+    fi
+}
+
+formula_version() {
+    "$BREW_BINARY" list --formula --versions "$1" 2>/dev/null || true
+}
+
+cask_version() {
+    "$BREW_BINARY" list --cask --versions "$1" 2>/dev/null || true
+}
+
+resolve_starship() {
+    if command -v starship >/dev/null 2>&1; then
+        STARSHIP_BINARY=$(command -v starship)
+        return
+    fi
+
+    brew_directory=$(dirname -- "$BREW_BINARY")
+    if [ -x "$brew_directory/starship" ]; then
+        STARSHIP_BINARY=$brew_directory/starship
+    else
+        fail "Starship binary not found after formula installation"
+    fi
+}
+
+validate_font_files() {
+    font_directory=${HOME:?HOME must be set}/Library/Fonts
+    [ -d "$font_directory" ] && [ ! -L "$font_directory" ] \
+        || fail "Homebrew font directory is missing or is a symbolic link: $font_directory"
+
+    find "$font_directory" -type f \
+        -name 'JetBrainsMono*NerdFont-Regular.ttf' -print 2>/dev/null \
+        | grep -q . \
+        || fail "JetBrainsMono Nerd Font regular face was not found in $font_directory"
+}
+
+validate_runtime() {
+    starship_version=$(formula_version "$STARSHIP_FORMULA")
+    [ -n "$starship_version" ] \
+        || fail "Homebrew formula is not installed: $STARSHIP_FORMULA"
+    font_version=$(cask_version "$FONT_CASK")
+    [ -n "$font_version" ] \
+        || fail "Homebrew cask is not installed: $FONT_CASK"
+
+    resolve_starship
+    "$STARSHIP_BINARY" --version >/dev/null 2>&1 \
+        || fail "installed Starship binary did not report its version"
+    STARSHIP_CONFIG=$CONFIG_SOURCE "$STARSHIP_BINARY" print-config \
+        >/dev/null 2>&1 \
+        || fail "Starship rejected the repository configuration"
+    "$SETUP_SCRIPT" --check >/dev/null
+    validate_font_files
+
+    printf 'Verified %s and %s.\n' "$starship_version" "$font_version"
+}
+
+print_formula_plan() {
+    formula_name=$1
+    installed_version=$(formula_version "$formula_name")
+    if [ -n "$installed_version" ]; then
+        printf 'Already installed: %s\n' "$installed_version"
+    else
+        print_command "$BREW_BINARY" install "$formula_name"
+    fi
+}
+
+print_cask_plan() {
+    cask_name=$1
+    installed_version=$(cask_version "$cask_name")
+    if [ -n "$installed_version" ]; then
+        printf 'Already installed: %s\n' "$installed_version"
+    else
+        print_command "$BREW_BINARY" install --cask "$cask_name"
+    fi
+}
+
+install_formula_if_missing() {
+    formula_name=$1
+    if [ -n "$(formula_version "$formula_name")" ]; then
+        return
+    fi
+    "$BREW_BINARY" install "$formula_name"
+}
+
+install_cask_if_missing() {
+    cask_name=$1
+    if [ -n "$(cask_version "$cask_name")" ]; then
+        return
+    fi
+    "$BREW_BINARY" install --cask "$cask_name"
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --check)
+            [ "$MODE" = install ] || fail "select exactly one mode"
+            MODE=check
+            ;;
+        --plan)
+            [ "$MODE" = install ] || fail "select exactly one mode"
+            MODE=plan
+            ;;
+        --verify)
+            [ "$MODE" = install ] || fail "select exactly one mode"
+            MODE=verify
+            ;;
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        *) fail "unknown argument: $1" ;;
+    esac
+    shift
+done
+
+validate_repository_sources
+
+case "$MODE" in
+    check)
+        printf 'Validated Starship installer and configuration sources.\n'
+        ;;
+    plan)
+        validate_macos
+        resolve_brew
+        print_formula_plan "$STARSHIP_FORMULA"
+        print_cask_plan "$FONT_CASK"
+        printf 'Plan complete; no workstation changes were made.\n'
+        ;;
+    verify)
+        validate_macos
+        resolve_brew
+        validate_runtime
+        ;;
+    install)
+        validate_macos
+        [ "$(id -u)" -ne 0 ] \
+            || fail "run Homebrew installation as the workstation user, not root"
+        resolve_brew
+        install_formula_if_missing "$STARSHIP_FORMULA"
+        install_cask_if_missing "$FONT_CASK"
+        validate_runtime
+        printf 'Starship workstation dependencies are installed.\n'
+        ;;
+esac

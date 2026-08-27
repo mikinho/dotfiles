@@ -1,0 +1,388 @@
+#!/bin/sh
+
+set -eu
+
+PROGRAM_NAME=${0##*/}
+SCRIPT_DIRECTORY=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+CONFIG_SOURCE=$SCRIPT_DIRECTORY/starship.toml
+
+USER_HOME=${HOME:?HOME must be set}
+CONFIG_BASE=${XDG_CONFIG_HOME:-$USER_HOME/.config}
+CONFIG_TARGET=${STARSHIP_CONFIG:-$CONFIG_BASE/starship.toml}
+CONFIG_DIRECTORY=$(dirname -- "$CONFIG_TARGET")
+BACKUP_CONTAINER=$CONFIG_BASE/starship
+BACKUPS_ROOT=$BACKUP_CONTAINER/backups
+
+MODE=apply
+REPLACE_EXISTING=no
+REPLACEMENT_REQUIRED=no
+STARSHIP_BINARY=
+SCRATCH_DIRECTORY=
+VALIDATION_DIRECTORY=
+PERSISTENT_BACKUP=
+TEMPORARY_CONFIG=
+ROLLBACK_REQUIRED=no
+
+usage() {
+    cat <<EOF
+Usage:
+  $PROGRAM_NAME
+  $PROGRAM_NAME --plan [--replace-existing]
+  $PROGRAM_NAME --check
+  $PROGRAM_NAME --verify
+  $PROGRAM_NAME --replace-existing
+
+Installs the repository Starship configuration at:
+  $CONFIG_TARGET
+
+The target follows STARSHIP_CONFIG when it is set and otherwise uses the XDG
+config location. A differing config is never discarded implicitly: review the
+plan, then use --replace-existing to preserve it in a private backup directory
+before installing the repository version.
+EOF
+}
+
+fail() {
+    printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
+    exit 1
+}
+
+validate_source_structure() {
+    [ -s "$CONFIG_SOURCE" ] && [ -f "$CONFIG_SOURCE" ] \
+        && [ ! -L "$CONFIG_SOURCE" ] \
+        || fail "repository config must be a non-empty regular file: $CONFIG_SOURCE"
+
+    awk '
+        /^[[:space:]]*($|#)/ { next }
+        /^[[:space:]]*\[[[:alnum:]_.-]+\][[:space:]]*$/ {
+            section = $0
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", section)
+            next
+        }
+        index($0, "=") == 0 { exit 1 }
+        {
+            key = $0
+            sub(/=.*/, "", key)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+            if (key == "" || key == "\"$schema\"") { exit 1 }
+            if (seen[section SUBSEP key]++) { exit 1 }
+            assignments++
+        }
+        END { if (assignments == 0) { exit 1 } }
+    ' "$CONFIG_SOURCE" \
+        || fail "repository config has a malformed, duplicate, or default-only setting"
+}
+
+validate_paths() {
+    case "$USER_HOME" in
+        /*) ;;
+        *) fail "HOME must be an absolute path" ;;
+    esac
+    case "$CONFIG_BASE" in
+        /*) ;;
+        *) fail "XDG_CONFIG_HOME must be an absolute path when set" ;;
+    esac
+    case "$CONFIG_TARGET" in
+        /*) ;;
+        *) fail "STARSHIP_CONFIG must be an absolute path when set" ;;
+    esac
+    [ "$CONFIG_TARGET" != "$CONFIG_SOURCE" ] \
+        || fail "Starship config target cannot be the repository source"
+    case "$CONFIG_TARGET" in
+        "$BACKUPS_ROOT" | "$BACKUPS_ROOT"/*)
+            fail "Starship config cannot be stored inside its backup directory"
+            ;;
+    esac
+
+    for directory_path in \
+        "$CONFIG_BASE" \
+        "$CONFIG_DIRECTORY" \
+        "$BACKUP_CONTAINER" \
+        "$BACKUPS_ROOT"
+    do
+        if [ -e "$directory_path" ] || [ -L "$directory_path" ]; then
+            [ -d "$directory_path" ] && [ ! -L "$directory_path" ] \
+                || fail "configuration directory must be a real directory: $directory_path"
+        fi
+    done
+
+    if [ -e "$CONFIG_TARGET" ] || [ -L "$CONFIG_TARGET" ]; then
+        [ -f "$CONFIG_TARGET" ] && [ ! -L "$CONFIG_TARGET" ] \
+            || fail "configuration target must be a regular file: $CONFIG_TARGET"
+    fi
+}
+
+inspect_existing_config() {
+    REPLACEMENT_REQUIRED=no
+    [ -e "$CONFIG_TARGET" ] || return 0
+    cmp -s "$CONFIG_SOURCE" "$CONFIG_TARGET" \
+        || REPLACEMENT_REQUIRED=yes
+
+    if [ "$REPLACEMENT_REQUIRED" = yes ] \
+        && [ "$REPLACE_EXISTING" != yes ]; then
+        fail "a differing Starship config exists; rerun the plan with --replace-existing"
+    fi
+}
+
+resolve_starship() {
+    if command -v starship >/dev/null 2>&1; then
+        STARSHIP_BINARY=$(command -v starship)
+    elif [ -x /opt/homebrew/bin/starship ]; then
+        STARSHIP_BINARY=/opt/homebrew/bin/starship
+    elif [ -x /usr/local/bin/starship ]; then
+        STARSHIP_BINARY=/usr/local/bin/starship
+    else
+        STARSHIP_BINARY=
+    fi
+}
+
+remove_validation_directory() {
+    if [ -n "$VALIDATION_DIRECTORY" ] \
+        && [ -d "$VALIDATION_DIRECTORY" ]; then
+        rm -rf -- "$VALIDATION_DIRECTORY"
+    fi
+    VALIDATION_DIRECTORY=
+}
+
+validate_with_starship() {
+    config_path=$1
+    [ -n "$STARSHIP_BINARY" ] \
+        || fail "Starship is not installed; run the sibling install script first"
+
+    VALIDATION_DIRECTORY=$(mktemp -d \
+        "${TMPDIR:-/tmp}/config-starship-validation.XXXXXX")
+    configured_output=$VALIDATION_DIRECTORY/configured.toml
+    default_output=$VALIDATION_DIRECTORY/default.toml
+
+    if ! STARSHIP_CONFIG=$config_path "$STARSHIP_BINARY" print-config \
+        >"$configured_output" 2>/dev/null; then
+        fail "Starship rejected the configuration: $config_path"
+    fi
+    if ! "$STARSHIP_BINARY" print-config --default \
+        >"$default_output" 2>/dev/null; then
+        fail "Starship could not report its default configuration"
+    fi
+
+    source_setting_count=$(awk '
+        /^[[:space:]]*($|#|\[)/ { next }
+        index($0, "=") { count++ }
+        END { print count + 0 }
+    ' "$config_path")
+    changed_setting_count=$(diff -U 0 "$default_output" "$configured_output" \
+        | awk '
+            /^\+\+\+/ { next }
+            /^\+/ { count++ }
+            END { print count + 0 }
+        ')
+
+    [ "$source_setting_count" -eq "$changed_setting_count" ] \
+        || fail "config contains a default-equivalent, unknown, or non-scalar setting: $config_path"
+    remove_validation_directory
+}
+
+file_mode() {
+    if stat -f '%Lp' "$1" >/dev/null 2>&1; then
+        stat -f '%Lp' "$1"
+    else
+        stat -c '%a' "$1"
+    fi
+}
+
+file_owner_id() {
+    if stat -f '%u' "$1" >/dev/null 2>&1; then
+        stat -f '%u' "$1"
+    else
+        stat -c '%u' "$1"
+    fi
+}
+
+validate_active_load_path() {
+    VALIDATION_DIRECTORY=$(mktemp -d \
+        "${TMPDIR:-/tmp}/config-starship-load.XXXXXX")
+    explicit_output=$VALIDATION_DIRECTORY/explicit.toml
+    active_output=$VALIDATION_DIRECTORY/active.toml
+
+    STARSHIP_CONFIG=$CONFIG_TARGET "$STARSHIP_BINARY" print-config \
+        >"$explicit_output" 2>/dev/null \
+        || fail "Starship rejected the installed configuration"
+    "$STARSHIP_BINARY" print-config >"$active_output" 2>/dev/null \
+        || fail "Starship could not load its active configuration"
+    cmp -s "$explicit_output" "$active_output" \
+        || fail "active Starship config does not resolve to the managed target: $CONFIG_TARGET"
+    remove_validation_directory
+}
+
+validate_installed_config() {
+    [ -f "$CONFIG_TARGET" ] && [ ! -L "$CONFIG_TARGET" ] \
+        || fail "managed Starship config is missing or unsafe: $CONFIG_TARGET"
+    cmp -s "$CONFIG_SOURCE" "$CONFIG_TARGET" \
+        || fail "managed Starship config differs from the repository source"
+    [ "$(file_mode "$CONFIG_TARGET")" = 644 ] \
+        || fail "managed Starship config must have mode 0644"
+    [ "$(file_owner_id "$CONFIG_TARGET")" -eq "$(id -u)" ] \
+        || fail "managed Starship config must be owned by the current user"
+    validate_with_starship "$CONFIG_TARGET"
+    validate_active_load_path
+}
+
+backup_existing_config() {
+    if [ -e "$CONFIG_TARGET" ]; then
+        cp -p "$CONFIG_TARGET" "$SCRATCH_DIRECTORY/starship.toml"
+        : >"$SCRATCH_DIRECTORY/starship.toml.present"
+    fi
+}
+
+restore_config() {
+    rm -f -- "$CONFIG_TARGET"
+    if [ -f "$SCRATCH_DIRECTORY/starship.toml.present" ]; then
+        install -d "$CONFIG_DIRECTORY"
+        cp -p "$SCRATCH_DIRECTORY/starship.toml" "$CONFIG_TARGET"
+    fi
+    ROLLBACK_REQUIRED=no
+}
+
+cleanup() {
+    cleanup_failed=$ROLLBACK_REQUIRED
+    remove_validation_directory
+    if [ "$ROLLBACK_REQUIRED" = yes ]; then
+        restore_config
+    fi
+    if [ -n "$TEMPORARY_CONFIG" ] && [ -e "$TEMPORARY_CONFIG" ]; then
+        rm -f -- "$TEMPORARY_CONFIG"
+    fi
+    if [ "$cleanup_failed" = yes ] \
+        && [ -n "$PERSISTENT_BACKUP" ] \
+        && [ -d "$PERSISTENT_BACKUP" ]; then
+        rm -rf -- "$PERSISTENT_BACKUP"
+    fi
+    if [ -n "$SCRATCH_DIRECTORY" ] && [ -d "$SCRATCH_DIRECTORY" ]; then
+        rm -rf -- "$SCRATCH_DIRECTORY"
+    fi
+}
+
+handle_signal() {
+    trap - EXIT HUP INT TERM
+    cleanup
+    exit 1
+}
+
+persist_existing_config() {
+    [ "$REPLACEMENT_REQUIRED" = yes ] || return 0
+    install -d -m 0700 "$BACKUPS_ROOT"
+    PERSISTENT_BACKUP=$(mktemp -d "$BACKUPS_ROOT/setup.XXXXXX")
+    chmod 0700 "$PERSISTENT_BACKUP"
+    cp -p "$SCRATCH_DIRECTORY/starship.toml" \
+        "$PERSISTENT_BACKUP/starship.toml"
+}
+
+print_plan() {
+    if [ "$REPLACEMENT_REQUIRED" = yes ]; then
+        printf '+ preserve existing config under %s/setup.XXXXXX\n' \
+            "$BACKUPS_ROOT"
+    fi
+    printf '+ install -d %s\n' "$CONFIG_DIRECTORY"
+    printf '+ install -m 0644 %s %s\n' "$CONFIG_SOURCE" "$CONFIG_TARGET"
+    printf '+ STARSHIP_CONFIG=%s starship print-config\n' "$CONFIG_TARGET"
+    printf 'Plan complete; no workstation changes were made.\n'
+}
+
+apply_config() {
+    [ "$(id -u)" -ne 0 ] \
+        || fail "install the Starship config as the workstation user, not root"
+    [ -n "$STARSHIP_BINARY" ] \
+        || fail "Starship is not installed; run the sibling install script first"
+    for required_command in awk chmod cmp cp diff install mktemp mv rm stat; do
+        command -v "$required_command" >/dev/null 2>&1 \
+            || fail "required command not found: $required_command"
+    done
+
+    SCRATCH_DIRECTORY=$(mktemp -d \
+        "${TMPDIR:-/tmp}/config-starship-setup.XXXXXX")
+    backup_existing_config
+    ROLLBACK_REQUIRED=yes
+
+    install -d "$CONFIG_DIRECTORY"
+    TEMPORARY_CONFIG=$(mktemp "$CONFIG_DIRECTORY/.starship.toml.XXXXXX")
+    install -m 0644 "$CONFIG_SOURCE" "$TEMPORARY_CONFIG"
+    mv -f -- "$TEMPORARY_CONFIG" "$CONFIG_TARGET"
+    TEMPORARY_CONFIG=
+
+    validate_installed_config
+    persist_existing_config
+    ROLLBACK_REQUIRED=no
+
+    printf 'Installed Starship config: %s\n' "$CONFIG_TARGET"
+    if [ -n "$PERSISTENT_BACKUP" ]; then
+        printf 'Preserved previous Starship config: %s\n' "$PERSISTENT_BACKUP"
+    fi
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --check)
+            [ "$MODE" = apply ] || fail "select exactly one mode"
+            MODE=check
+            ;;
+        --plan)
+            [ "$MODE" = apply ] || fail "select exactly one mode"
+            MODE=plan
+            ;;
+        --verify)
+            [ "$MODE" = apply ] || fail "select exactly one mode"
+            MODE=verify
+            ;;
+        --replace-existing)
+            [ "$REPLACE_EXISTING" = no ] \
+                || fail "--replace-existing may be specified only once"
+            REPLACE_EXISTING=yes
+            ;;
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        *) fail "unknown argument: $1" ;;
+    esac
+    shift
+done
+
+trap cleanup EXIT
+trap handle_signal HUP INT TERM
+
+validate_source_structure
+resolve_starship
+
+if [ "$MODE" = check ]; then
+    [ "$REPLACE_EXISTING" = no ] \
+        || fail "--check does not accept --replace-existing"
+    if [ -n "$STARSHIP_BINARY" ]; then
+        validate_with_starship "$CONFIG_SOURCE"
+    fi
+    printf 'Validated Starship repository configuration and override delta.\n'
+    exit 0
+fi
+
+[ "$(uname -s)" = Darwin ] \
+    || fail "Starship workstation setup is supported only on macOS"
+validate_paths
+
+case "$MODE" in
+    plan)
+        if [ -n "$STARSHIP_BINARY" ]; then
+            validate_with_starship "$CONFIG_SOURCE"
+        fi
+        inspect_existing_config
+        print_plan
+        ;;
+    verify)
+        [ "$REPLACE_EXISTING" = no ] \
+            || fail "--verify does not accept --replace-existing"
+        [ -n "$STARSHIP_BINARY" ] \
+            || fail "Starship is not installed; run the sibling install script first"
+        validate_installed_config
+        printf 'Verified the installed Starship configuration and load path.\n'
+        ;;
+    apply)
+        inspect_existing_config
+        apply_config
+        ;;
+esac
