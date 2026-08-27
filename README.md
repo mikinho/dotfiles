@@ -85,9 +85,7 @@ Some highlights from `.gitconfig`:
 | `git lg` | Pretty graph log with author and signature status |
 | `git staged` / `git unstage` | Inspect staged changes or unstage selected paths |
 | `git undo` | Soft reset last commit |
-| `git cleanup` | Delete branches already merged into the remote's default branch |
 | `git amend` | Amend with previous commit message |
-| `git compare` | Show commits ahead of the remote's default branch |
 | `git alias` | List all git aliases |
 
 ## Note on Git Email
