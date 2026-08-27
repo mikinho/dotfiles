@@ -1,0 +1,383 @@
+#!/bin/sh
+
+set -eu
+
+PROGRAM_NAME=${0##*/}
+SCRIPT_DIRECTORY=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+CONFIG_SOURCE=$SCRIPT_DIRECTORY/config.ghostty
+GHOSTTY_APP_BINARY=/Applications/Ghostty.app/Contents/MacOS/ghostty
+
+USER_HOME=${HOME:?HOME must be set}
+CONFIG_BASE=${XDG_CONFIG_HOME:-$USER_HOME/.config}
+CONFIG_DIRECTORY=$CONFIG_BASE/ghostty
+CONFIG_TARGET=$CONFIG_DIRECTORY/config.ghostty
+XDG_LEGACY_CONFIG=$CONFIG_DIRECTORY/config
+MACOS_CONFIG_DIRECTORY="$USER_HOME/Library/Application Support/com.mitchellh.ghostty"
+MACOS_CONFIG="$MACOS_CONFIG_DIRECTORY/config.ghostty"
+MACOS_LEGACY_CONFIG="$MACOS_CONFIG_DIRECTORY/config"
+
+MODE=apply
+REPLACE_EXISTING=no
+REPLACEMENT_REQUIRED=no
+GHOSTTY_BINARY=
+SCRATCH_DIRECTORY=
+PERSISTENT_BACKUP=
+TEMPORARY_CONFIG=
+ROLLBACK_REQUIRED=no
+
+usage() {
+    cat <<EOF
+Usage:
+  $PROGRAM_NAME
+  $PROGRAM_NAME --plan [--replace-existing]
+  $PROGRAM_NAME --check
+  $PROGRAM_NAME --verify
+  $PROGRAM_NAME --replace-existing
+
+Installs the repository Ghostty configuration at:
+  $CONFIG_TARGET
+
+Matching alternate configs and empty macOS config files are retired
+automatically. A differing config is never discarded implicitly: review the
+plan, then use --replace-existing to preserve all existing config files in a
+private backup directory before installing the repository version.
+EOF
+}
+
+fail() {
+    printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
+    exit 1
+}
+
+validate_source_structure() {
+    [ -f "$CONFIG_SOURCE" ] && [ ! -L "$CONFIG_SOURCE" ] \
+        || fail "repository config must be a regular file: $CONFIG_SOURCE"
+
+    awk '
+        /^[[:space:]]*($|#)/ { next }
+        index($0, "=") == 0 { exit 1 }
+        {
+            key = $0
+            sub(/=.*/, "", key)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+            if (key == "" || seen[key]++) { exit 1 }
+            if (key == "config-file") { exit 1 }
+        }
+    ' "$CONFIG_SOURCE" \
+        || fail "repository config has a malformed, duplicate, or included setting"
+}
+
+validate_paths() {
+    case "$USER_HOME" in
+        /*) ;;
+        *) fail "HOME must be an absolute path" ;;
+    esac
+    case "$CONFIG_BASE" in
+        /*) ;;
+        *) fail "XDG_CONFIG_HOME must be an absolute path when set" ;;
+    esac
+
+    for directory_path in \
+        "$CONFIG_BASE" \
+        "$CONFIG_DIRECTORY" \
+        "$MACOS_CONFIG_DIRECTORY"
+    do
+        if [ -e "$directory_path" ] || [ -L "$directory_path" ]; then
+            [ -d "$directory_path" ] && [ ! -L "$directory_path" ] \
+                || fail "configuration directory must be a real directory: $directory_path"
+        fi
+    done
+
+    for config_path in \
+        "$CONFIG_TARGET" \
+        "$XDG_LEGACY_CONFIG" \
+        "$MACOS_CONFIG" \
+        "$MACOS_LEGACY_CONFIG"
+    do
+        if [ -e "$config_path" ] || [ -L "$config_path" ]; then
+            [ -f "$config_path" ] && [ ! -L "$config_path" ] \
+                || fail "configuration target must be a regular file: $config_path"
+        fi
+    done
+}
+
+inspect_existing_config() {
+    config_path=$1
+    config_role=$2
+    [ -e "$config_path" ] || return 0
+
+    if cmp -s "$CONFIG_SOURCE" "$config_path"; then
+        return 0
+    fi
+    if [ "$config_role" = alternate ] && [ ! -s "$config_path" ]; then
+        return 0
+    fi
+    REPLACEMENT_REQUIRED=yes
+}
+
+validate_existing_configs() {
+    REPLACEMENT_REQUIRED=no
+    inspect_existing_config "$CONFIG_TARGET" canonical
+    inspect_existing_config "$XDG_LEGACY_CONFIG" alternate
+    inspect_existing_config "$MACOS_CONFIG" alternate
+    inspect_existing_config "$MACOS_LEGACY_CONFIG" alternate
+
+    if [ "$REPLACEMENT_REQUIRED" = yes ] \
+        && [ "$REPLACE_EXISTING" != yes ]; then
+        fail "a differing Ghostty config exists; rerun the plan with --replace-existing"
+    fi
+}
+
+resolve_ghostty() {
+    if command -v ghostty >/dev/null 2>&1; then
+        GHOSTTY_BINARY=$(command -v ghostty)
+    elif [ -x "$GHOSTTY_APP_BINARY" ]; then
+        GHOSTTY_BINARY=$GHOSTTY_APP_BINARY
+    else
+        GHOSTTY_BINARY=
+    fi
+}
+
+validate_with_ghostty() {
+    config_path=$1
+    [ -n "$GHOSTTY_BINARY" ] \
+        || fail "Ghostty is not installed; run the sibling install script first"
+    "$GHOSTTY_BINARY" +validate-config \
+        --config-file="$config_path" >/dev/null 2>&1 \
+        || fail "Ghostty rejected the configuration: $config_path"
+}
+
+file_mode() {
+    if stat -f '%Lp' "$1" >/dev/null 2>&1; then
+        stat -f '%Lp' "$1"
+    else
+        stat -c '%a' "$1"
+    fi
+}
+
+file_owner_id() {
+    if stat -f '%u' "$1" >/dev/null 2>&1; then
+        stat -f '%u' "$1"
+    else
+        stat -c '%u' "$1"
+    fi
+}
+
+validate_installed_config() {
+    [ -f "$CONFIG_TARGET" ] && [ ! -L "$CONFIG_TARGET" ] \
+        || fail "managed Ghostty config is missing or unsafe: $CONFIG_TARGET"
+    cmp -s "$CONFIG_SOURCE" "$CONFIG_TARGET" \
+        || fail "managed Ghostty config differs from the repository source"
+    [ "$(file_mode "$CONFIG_TARGET")" = 600 ] \
+        || fail "managed Ghostty config must have mode 0600"
+    [ "$(file_owner_id "$CONFIG_TARGET")" -eq "$(id -u)" ] \
+        || fail "managed Ghostty config must be owned by the current user"
+
+    for alternate_path in \
+        "$XDG_LEGACY_CONFIG" \
+        "$MACOS_CONFIG" \
+        "$MACOS_LEGACY_CONFIG"
+    do
+        [ ! -e "$alternate_path" ] && [ ! -L "$alternate_path" ] \
+            || fail "alternate Ghostty config still exists alongside the managed file: $alternate_path"
+    done
+    validate_with_ghostty "$CONFIG_TARGET"
+}
+
+backup_config() {
+    config_path=$1
+    backup_name=$2
+    if [ -e "$config_path" ]; then
+        cp -p "$config_path" "$SCRATCH_DIRECTORY/$backup_name"
+        : > "$SCRATCH_DIRECTORY/$backup_name.present"
+    fi
+}
+
+restore_config() {
+    config_path=$1
+    backup_name=$2
+    rm -f -- "$config_path"
+    if [ -f "$SCRATCH_DIRECTORY/$backup_name.present" ]; then
+        install -d -m 0700 "$(dirname -- "$config_path")"
+        cp -p "$SCRATCH_DIRECTORY/$backup_name" "$config_path"
+    fi
+}
+
+rollback_configs() {
+    [ -n "$SCRATCH_DIRECTORY" ] && [ -d "$SCRATCH_DIRECTORY" ] || return 0
+    restore_config "$CONFIG_TARGET" canonical
+    restore_config "$XDG_LEGACY_CONFIG" xdg-legacy
+    restore_config "$MACOS_CONFIG" macos-current
+    restore_config "$MACOS_LEGACY_CONFIG" macos-legacy
+    ROLLBACK_REQUIRED=no
+}
+
+cleanup() {
+    cleanup_failed=$ROLLBACK_REQUIRED
+    if [ "$ROLLBACK_REQUIRED" = yes ]; then
+        rollback_configs
+    fi
+    if [ -n "$TEMPORARY_CONFIG" ] && [ -e "$TEMPORARY_CONFIG" ]; then
+        rm -f -- "$TEMPORARY_CONFIG"
+    fi
+    if [ "$cleanup_failed" = yes ] \
+        && [ -n "$PERSISTENT_BACKUP" ] \
+        && [ -d "$PERSISTENT_BACKUP" ]; then
+        rm -rf -- "$PERSISTENT_BACKUP"
+    fi
+    if [ -n "$SCRATCH_DIRECTORY" ] && [ -d "$SCRATCH_DIRECTORY" ]; then
+        rm -rf -- "$SCRATCH_DIRECTORY"
+    fi
+}
+
+handle_signal() {
+    trap - EXIT HUP INT TERM
+    cleanup
+    exit 1
+}
+
+persist_existing_configs() {
+    [ "$REPLACEMENT_REQUIRED" = yes ] || return 0
+    backups_root=$CONFIG_DIRECTORY/backups
+    if [ -e "$backups_root" ] || [ -L "$backups_root" ]; then
+        [ -d "$backups_root" ] && [ ! -L "$backups_root" ] \
+            || fail "backup target must be a real directory: $backups_root"
+    fi
+    install -d -m 0700 "$backups_root"
+    PERSISTENT_BACKUP=$(mktemp -d "$backups_root/setup.XXXXXX")
+    chmod 0700 "$PERSISTENT_BACKUP"
+
+    for backup_name in canonical xdg-legacy macos-current macos-legacy; do
+        if [ -f "$SCRATCH_DIRECTORY/$backup_name.present" ]; then
+            cp -p "$SCRATCH_DIRECTORY/$backup_name" \
+                "$PERSISTENT_BACKUP/$backup_name"
+        fi
+    done
+}
+
+print_removal_if_present() {
+    config_path=$1
+    if [ -e "$config_path" ]; then
+        printf '+ rm -f -- %s\n' "$config_path"
+    fi
+}
+
+print_plan() {
+    if [ "$REPLACEMENT_REQUIRED" = yes ]; then
+        printf '+ preserve existing configs under %s/backups/setup.XXXXXX\n' \
+            "$CONFIG_DIRECTORY"
+    fi
+    printf '+ install -d -m 0700 %s\n' "$CONFIG_DIRECTORY"
+    printf '+ install -m 0600 %s %s\n' "$CONFIG_SOURCE" "$CONFIG_TARGET"
+    print_removal_if_present "$XDG_LEGACY_CONFIG"
+    print_removal_if_present "$MACOS_CONFIG"
+    print_removal_if_present "$MACOS_LEGACY_CONFIG"
+    printf '+ ghostty +validate-config --config-file=%s\n' "$CONFIG_TARGET"
+    printf 'Plan complete; no workstation changes were made.\n'
+}
+
+apply_config() {
+    [ "$(id -u)" -ne 0 ] \
+        || fail "install the Ghostty config as the workstation user, not root"
+    [ -n "$GHOSTTY_BINARY" ] \
+        || fail "Ghostty is not installed; run the sibling install script first"
+    for required_command in chmod cmp cp install mktemp mv rm stat; do
+        command -v "$required_command" >/dev/null 2>&1 \
+            || fail "required command not found: $required_command"
+    done
+
+    SCRATCH_DIRECTORY=$(mktemp -d "${TMPDIR:-/tmp}/config-ghostty-setup.XXXXXX")
+    backup_config "$CONFIG_TARGET" canonical
+    backup_config "$XDG_LEGACY_CONFIG" xdg-legacy
+    backup_config "$MACOS_CONFIG" macos-current
+    backup_config "$MACOS_LEGACY_CONFIG" macos-legacy
+    ROLLBACK_REQUIRED=yes
+
+    install -d -m 0700 "$CONFIG_DIRECTORY"
+    rm -f -- \
+        "$CONFIG_TARGET" \
+        "$XDG_LEGACY_CONFIG" \
+        "$MACOS_CONFIG" \
+        "$MACOS_LEGACY_CONFIG"
+    TEMPORARY_CONFIG=$(mktemp "$CONFIG_DIRECTORY/.config.ghostty.XXXXXX")
+    install -m 0600 "$CONFIG_SOURCE" "$TEMPORARY_CONFIG"
+    mv -f -- "$TEMPORARY_CONFIG" "$CONFIG_TARGET"
+    TEMPORARY_CONFIG=
+
+    validate_installed_config
+    persist_existing_configs
+    ROLLBACK_REQUIRED=no
+
+    printf 'Installed Ghostty config: %s\n' "$CONFIG_TARGET"
+    if [ -n "$PERSISTENT_BACKUP" ]; then
+        printf 'Preserved previous Ghostty configs: %s\n' "$PERSISTENT_BACKUP"
+    fi
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --check)
+            [ "$MODE" = apply ] || fail "select exactly one mode"
+            MODE=check
+            ;;
+        --plan)
+            [ "$MODE" = apply ] || fail "select exactly one mode"
+            MODE=plan
+            ;;
+        --verify)
+            [ "$MODE" = apply ] || fail "select exactly one mode"
+            MODE=verify
+            ;;
+        --replace-existing)
+            [ "$REPLACE_EXISTING" = no ] \
+                || fail "--replace-existing may be specified only once"
+            REPLACE_EXISTING=yes
+            ;;
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        *) fail "unknown argument: $1" ;;
+    esac
+    shift
+done
+
+trap cleanup EXIT
+trap handle_signal HUP INT TERM
+
+validate_source_structure
+resolve_ghostty
+
+if [ "$MODE" = check ]; then
+    [ "$REPLACE_EXISTING" = no ] \
+        || fail "--check does not accept --replace-existing"
+    if [ -n "$GHOSTTY_BINARY" ]; then
+        validate_with_ghostty "$CONFIG_SOURCE"
+    fi
+    printf 'Validated Ghostty repository configuration.\n'
+    exit 0
+fi
+
+[ "$(uname -s)" = Darwin ] \
+    || fail "Ghostty workstation setup is supported only on macOS"
+validate_paths
+
+case "$MODE" in
+    plan)
+        if [ -n "$GHOSTTY_BINARY" ]; then
+            validate_with_ghostty "$CONFIG_SOURCE"
+        fi
+        validate_existing_configs
+        print_plan
+        ;;
+    verify)
+        [ "$REPLACE_EXISTING" = no ] \
+            || fail "--verify does not accept --replace-existing"
+        validate_installed_config
+        printf 'Verified the installed Ghostty configuration and load path.\n'
+        ;;
+    apply)
+        validate_existing_configs
+        apply_config
+        ;;
+esac

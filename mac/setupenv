@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIRECTORY=$(CDPATH="" cd -- "$(dirname -- "$0")" && pwd)
+
 # Link Sublime Text command-line tool
 SUBL_APP="/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"
 if [ -x "$SUBL_APP" ]; then
@@ -7,3 +9,11 @@ if [ -x "$SUBL_APP" ]; then
     ln -sf "$SUBL_APP" "$HOME/bin/subl"
     echo "Linked subl to ~/bin/subl"
 fi
+
+# Ghostty is opt-in because config convergence may require explicit drift
+# replacement. Keep Ghostty package and config changes out of the generic
+# platform bootstrap and point to the component's review-first workflow.
+printf '%s\n' \
+    "Ghostty workstation setup is available separately:" \
+    "  $SCRIPT_DIRECTORY/ghostty/install --plan" \
+    "  $SCRIPT_DIRECTORY/ghostty/setup --plan"

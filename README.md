@@ -14,12 +14,19 @@ git clone https://github.com/mikinho/dotfiles.git && cd dotfiles
 
 Use `./setupenv -f` to skip the confirmation prompt.
 
+On macOS, Ghostty workstation setup is an explicit, review-first component.
+The generic bootstrap prints its plan commands but does not install software or
+migrate terminal configuration automatically. Start with
+`mac/ghostty/install --plan` and `mac/ghostty/setup --plan`; see
+[`mac/ghostty/README.md`](mac/ghostty/README.md) for the apply workflow.
+
 ## Structure
 
 | Path | Purpose |
 |------|---------|
 | `setupenv` | Symlinks dotfiles to `$HOME`, copies SSH config, runs platform setup |
 | `mac/` | macOS-specific aliases and setup (Sublime Text CLI, DNS flush, etc.) |
+| `mac/ghostty/` | Ghostty, Nerd Font, and conflict-safe config setup for macOS |
 | `linux/` | Linux-specific config |
 | `.profile` | Shared login shell config (PATH setup, JAVA_HOME) |
 | `.bashrc` / `.zshrc` | Interactive shell config with git prompt, aliases, history |
@@ -43,6 +50,16 @@ cp -r ~/dotfiles/web/. . && cp ~/dotfiles/git/.gitignore-web .gitignore
 | `node/` | npm library configs (eslint, prettier, npmignore, editorconfig) |
 | `git/` | Gitignore templates (`.gitignore-web`, `.gitignore-node`, `.gitignore-python`) |
 | `py/` | Python project configs (ruff via pyproject.toml, editorconfig) |
+
+## Validation
+
+Run the focused Ghostty workstation test after changing that component:
+
+```bash
+shellcheck mac/ghostty/install mac/ghostty/setup \
+    tests/ghostty-workstation.sh mac/setupenv
+tests/ghostty-workstation.sh
+```
 
 ## Customization
 

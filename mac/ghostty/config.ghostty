@@ -1,0 +1,9 @@
+# Theme and Appearance
+theme = Catppuccin Mocha
+window-padding-x = 16
+window-padding-y = 16
+macos-titlebar-style = tabs
+
+# Font Setup (Requires a Nerd Font installed)
+font-size = 14
+font-family = "JetBrainsMono Nerd Font"

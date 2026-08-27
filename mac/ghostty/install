@@ -1,0 +1,187 @@
+#!/bin/sh
+
+set -eu
+
+PROGRAM_NAME=${0##*/}
+SCRIPT_DIRECTORY=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+SETUP_SCRIPT=$SCRIPT_DIRECTORY/setup
+CONFIG_SOURCE=$SCRIPT_DIRECTORY/config.ghostty
+
+GHOSTTY_CASK=ghostty
+FONT_CASK=font-jetbrains-mono-nerd-font
+GHOSTTY_APP_BINARY=/Applications/Ghostty.app/Contents/MacOS/ghostty
+
+MODE=install
+BREW_BINARY=
+GHOSTTY_BINARY=
+
+usage() {
+    cat <<EOF
+Usage:
+  $PROGRAM_NAME
+  $PROGRAM_NAME --plan
+  $PROGRAM_NAME --check
+  $PROGRAM_NAME --verify
+
+Installs Ghostty and JetBrains Mono Nerd Font with Homebrew on macOS. Existing
+casks are retained at their installed versions; this script does not perform
+implicit upgrades. --plan prints missing-cask actions without changing the
+workstation, --check validates repository assets, and --verify validates the
+installed casks plus the repository configuration's runtime dependencies.
+EOF
+}
+
+fail() {
+    printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
+    exit 1
+}
+
+print_command() {
+    printf '+'
+    for command_argument do
+        printf ' %s' "$command_argument"
+    done
+    printf '\n'
+}
+
+validate_repository_sources() {
+    [ -f "$CONFIG_SOURCE" ] && [ ! -L "$CONFIG_SOURCE" ] \
+        || fail "repository config must be a regular file: $CONFIG_SOURCE"
+    [ -f "$SETUP_SCRIPT" ] && [ -x "$SETUP_SCRIPT" ] \
+        && [ ! -L "$SETUP_SCRIPT" ] \
+        || fail "repository setup must be an executable regular file: $SETUP_SCRIPT"
+    "$SETUP_SCRIPT" --check >/dev/null
+}
+
+validate_macos() {
+    [ "$(uname -s)" = Darwin ] \
+        || fail "Ghostty workstation installation is supported only on macOS"
+}
+
+resolve_brew() {
+    if command -v brew >/dev/null 2>&1; then
+        BREW_BINARY=$(command -v brew)
+    elif [ -x /opt/homebrew/bin/brew ]; then
+        BREW_BINARY=/opt/homebrew/bin/brew
+    elif [ -x /usr/local/bin/brew ]; then
+        BREW_BINARY=/usr/local/bin/brew
+    else
+        fail "Homebrew is required; install it from https://brew.sh/ and rerun"
+    fi
+}
+
+cask_version() {
+    "$BREW_BINARY" list --cask --versions "$1" 2>/dev/null || true
+}
+
+resolve_ghostty() {
+    if command -v ghostty >/dev/null 2>&1; then
+        GHOSTTY_BINARY=$(command -v ghostty)
+    elif [ -x "$GHOSTTY_APP_BINARY" ]; then
+        GHOSTTY_BINARY=$GHOSTTY_APP_BINARY
+    else
+        fail "Ghostty binary not found after cask installation"
+    fi
+}
+
+validate_font_files() {
+    font_directory=${HOME:?HOME must be set}/Library/Fonts
+    [ -d "$font_directory" ] && [ ! -L "$font_directory" ] \
+        || fail "Homebrew font directory is missing or is a symbolic link: $font_directory"
+
+    find "$font_directory" -type f \
+        -name 'JetBrainsMono*NerdFont-Regular.ttf' -print 2>/dev/null \
+        | grep -q . \
+        || fail "JetBrainsMono Nerd Font regular face was not found in $font_directory"
+}
+
+validate_runtime() {
+    ghostty_version=$(cask_version "$GHOSTTY_CASK")
+    [ -n "$ghostty_version" ] \
+        || fail "Homebrew cask is not installed: $GHOSTTY_CASK"
+    font_version=$(cask_version "$FONT_CASK")
+    [ -n "$font_version" ] \
+        || fail "Homebrew cask is not installed: $FONT_CASK"
+
+    resolve_ghostty
+    "$GHOSTTY_BINARY" +validate-config \
+        --config-file="$CONFIG_SOURCE" >/dev/null 2>&1 \
+        || fail "Ghostty rejected the repository configuration"
+    "$GHOSTTY_BINARY" +list-themes 2>/dev/null \
+        | grep -F 'Catppuccin Mocha' >/dev/null \
+        || fail "Ghostty does not provide the configured Catppuccin Mocha theme"
+    validate_font_files
+
+    printf 'Verified %s and %s.\n' "$ghostty_version" "$font_version"
+}
+
+print_cask_plan() {
+    cask_name=$1
+    installed_version=$(cask_version "$cask_name")
+    if [ -n "$installed_version" ]; then
+        printf 'Already installed: %s\n' "$installed_version"
+    else
+        print_command "$BREW_BINARY" install --cask "$cask_name"
+    fi
+}
+
+install_cask_if_missing() {
+    cask_name=$1
+    if [ -n "$(cask_version "$cask_name")" ]; then
+        return
+    fi
+    "$BREW_BINARY" install --cask "$cask_name"
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --check)
+            [ "$MODE" = install ] || fail "select exactly one mode"
+            MODE=check
+            ;;
+        --plan)
+            [ "$MODE" = install ] || fail "select exactly one mode"
+            MODE=plan
+            ;;
+        --verify)
+            [ "$MODE" = install ] || fail "select exactly one mode"
+            MODE=verify
+            ;;
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        *) fail "unknown argument: $1" ;;
+    esac
+    shift
+done
+
+validate_repository_sources
+
+case "$MODE" in
+    check)
+        printf 'Validated Ghostty installer and configuration sources.\n'
+        ;;
+    plan)
+        validate_macos
+        resolve_brew
+        print_cask_plan "$GHOSTTY_CASK"
+        print_cask_plan "$FONT_CASK"
+        printf 'Plan complete; no workstation changes were made.\n'
+        ;;
+    verify)
+        validate_macos
+        resolve_brew
+        validate_runtime
+        ;;
+    install)
+        validate_macos
+        [ "$(id -u)" -ne 0 ] \
+            || fail "run Homebrew installation as the workstation user, not root"
+        resolve_brew
+        install_cask_if_missing "$GHOSTTY_CASK"
+        install_cask_if_missing "$FONT_CASK"
+        validate_runtime
+        printf 'Ghostty workstation dependencies are installed.\n'
+        ;;
+esac
