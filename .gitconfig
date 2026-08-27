@@ -24,21 +24,27 @@
     amend = !git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
     last = log -1 HEAD
     email = config user.email
+    sign = rebase --exec 'git commit --amend --no-edit -n -S'
 [format]
     numbered = auto
 [core]
     whitespace = -trailing-space
     excludesfile = ~/.gitignore
+[rerere]
+    enabled = true
 [repack]
     usedeltabaseoffset = true
 [branch]
     autosetupmerge = always
     autosetuprebase = always
+[merge]
+    conflictstyle = zdiff3
 [pager]
     color = true
     status = false
 [push]
     default = current
+    autoSetupRemote = true
 [rebase]
     autosquash = true
 [commit]
@@ -48,3 +54,5 @@
     format = ssh
 [gpg "ssh"]
     allowedSignersFile = ~/.ssh/allowed_signers
+[include]
+    path = ~/.gitconfig.local
