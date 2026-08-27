@@ -6,6 +6,11 @@ alias flushdns="sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder"
 # Update macOS, Homebrew, and npm packages
 alias updateall='sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; npm update -g'
 
+# Use the CLI bundled with the Tailscale app when it is installed
+if [ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]; then
+    alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+fi
+
 # Hide Desktop Icons
 alias hidedesktop='defaults write com.apple.finder CreateDesktop false; killall Finder'
 
