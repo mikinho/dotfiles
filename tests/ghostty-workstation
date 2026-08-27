@@ -49,6 +49,9 @@ trap cleanup EXIT HUP INT TERM
 [ -x "$GHOSTTY_SETUP" ] || fail "Ghostty setup is not executable"
 [ -f "$CONFIG_SOURCE" ] && [ ! -L "$CONFIG_SOURCE" ] \
     || fail "Ghostty configuration source is not a regular file"
+grep -Fx 'shell-integration-features = ssh-env,ssh-terminfo' \
+    "$CONFIG_SOURCE" >/dev/null \
+    || fail "Ghostty configuration does not enable SSH integration"
 
 mkdir -p \
     "$FAKE_BIN" \
@@ -104,6 +107,9 @@ case "${1:-}" in
         [ "$config_path" != "$2" ] && [ -f "$config_path" ] || exit 1
         grep -F 'theme = Catppuccin Mocha' "$config_path" >/dev/null
         grep -F 'font-family = "JetBrainsMono Nerd Font"' "$config_path" >/dev/null
+        grep -F \
+            'shell-integration-features = ssh-env,ssh-terminfo' \
+            "$config_path" >/dev/null
         if [ "${FAKE_GHOSTTY_REJECT_TARGET:-no}" = yes ] \
             && [ "$config_path" = "$HOME/.config/ghostty/config.ghostty" ]; then
             exit 1

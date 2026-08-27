@@ -8,7 +8,8 @@ authoritative configuration with:
 - the built-in Catppuccin Mocha theme;
 - 16-pixel horizontal and vertical window padding;
 - the macOS tab-style titlebar;
-- 14-point JetBrainsMono Nerd Font.
+- 14-point JetBrainsMono Nerd Font; and
+- Ghostty SSH environment and terminfo integration.
 
 Homebrew is an explicit prerequisite. The installer does not bootstrap
 Homebrew by executing a remote shell script, and it does not silently upgrade
@@ -51,19 +52,20 @@ Ghostty's own config validation, the prior files are restored.
 
 ## Shell and SSH integration
 
-The config leaves Ghostty 1.3's shell integration defaults unchanged: local
-shell detection is automatic, while `ssh-env` and `ssh-terminfo` are disabled.
-`ssh-env` can improve compatibility by using `xterm-256color` on remote hosts
-and offering Ghostty-related environment variables to SSH, but the remote SSH
-server decides whether to accept those variables. `ssh-terminfo` preserves the
-full `xterm-ghostty` capability set, but it runs `tic` to install a terminfo
-entry in the remote user's account and maintains a client-side install cache.
+The config explicitly enables Ghostty 1.3's `ssh-env` and `ssh-terminfo` shell
+integration features. `ssh-env` improves compatibility by using
+`xterm-256color` when needed and offering Ghostty-related environment variables
+to SSH; the remote SSH server still decides whether to accept those variables.
+`ssh-terminfo` preserves the full `xterm-ghostty` capability set by installing
+the terminfo entry in the remote user's account and maintaining a client-side
+install cache.
 
-Those features remain off so workstation bootstrap does not inject extra SSH
-behavior or implicitly change a remote user's state. Enabling either feature
-later is a client-side choice that belongs in this config; server-side support
-should remain generic terminal and terminfo readiness rather than a
-Ghostty-branded server component.
+This remains a client-side interactive-shell feature. It does not wrap SSH
+invocations made by scripts, `scp`, `sftp`, or other child processes, and it
+does not require a Ghostty-branded server component. Managed servers should
+continue to provide generic terminal and terminfo readiness. Ghostty's
+[SSH documentation](https://ghostty.org/docs/features/ssh) describes the
+remote installation, fallback, and wrapper boundaries.
 
 Verify the package and configuration state at any time:
 
