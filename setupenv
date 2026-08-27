@@ -17,6 +17,87 @@ show_usage ()
     [ ! -z "$1" ] && exit "$1"
 }
 
+collect_signing_emails ()
+{
+    local CONFIG_PATH
+    local LOCAL_CONFIG="$HOME/.gitconfig.local"
+
+    git config --global --get-all user.email 2>/dev/null || true
+
+    if [ ! -f "$LOCAL_CONFIG" ] || [ -L "$LOCAL_CONFIG" ]; then
+        return
+    fi
+
+    while IFS= read -r CONFIG_PATH
+    do
+        case "$CONFIG_PATH" in
+            \~/*)
+                CONFIG_PATH="$HOME/${CONFIG_PATH#\~/}"
+                ;;
+            /*)
+                ;;
+            *)
+                CONFIG_PATH="$HOME/$CONFIG_PATH"
+                ;;
+        esac
+
+        if [ -f "$CONFIG_PATH" ] && [ ! -L "$CONFIG_PATH" ]; then
+            git config --includes --file "$CONFIG_PATH" \
+                --get-all user.email 2>/dev/null || true
+        fi
+    done < <(
+        git config --file "$LOCAL_CONFIG" \
+            --get-regexp '^includeif\..*\.path$' 2>/dev/null \
+            | sed -E 's/^[^[:space:]]+[[:space:]]+//'
+    )
+}
+
+update_allowed_signers ()
+{
+    local ALLOWED_SIGNERS_FILE="$HOME/.ssh/allowed_signers"
+    local EMAIL
+    local ENTRY
+    local PUBLIC_KEY
+    local PUBLIC_KEY_FILE="$HOME/.ssh/id_ed25519.pub"
+    local TEMPORARY_FILE
+
+    if [ ! -f "$PUBLIC_KEY_FILE" ] || [ -L "$PUBLIC_KEY_FILE" ]; then
+        return
+    fi
+    if [ -e "$ALLOWED_SIGNERS_FILE" ] \
+        && { [ ! -f "$ALLOWED_SIGNERS_FILE" ] || [ -L "$ALLOWED_SIGNERS_FILE" ]; }; then
+        return 1
+    fi
+
+    TEMPORARY_FILE=$(mktemp "$HOME/.ssh/.allowed_signers.XXXXXX") || return 1
+    if [ -f "$ALLOWED_SIGNERS_FILE" ]; then
+        if ! cp -p "$ALLOWED_SIGNERS_FILE" "$TEMPORARY_FILE"; then
+            rm -f "$TEMPORARY_FILE"
+            return 1
+        fi
+    fi
+
+    PUBLIC_KEY=$(cat "$PUBLIC_KEY_FILE")
+    if [ -z "$PUBLIC_KEY" ]; then
+        rm -f "$TEMPORARY_FILE"
+        return 1
+    fi
+    while IFS= read -r EMAIL
+    do
+        [ -n "$EMAIL" ] || continue
+        ENTRY="$EMAIL $PUBLIC_KEY"
+        if ! grep -Fqx -- "$ENTRY" "$TEMPORARY_FILE"; then
+            printf '%s\n' "$ENTRY" >> "$TEMPORARY_FILE"
+        fi
+    done < <(collect_signing_emails)
+
+    if ! mv -f "$TEMPORARY_FILE" "$ALLOWED_SIGNERS_FILE"; then
+        rm -f "$TEMPORARY_FILE"
+        return 1
+    fi
+    chmod 644 "$ALLOWED_SIGNERS_FILE"
+}
+
 link_dotfiles ()
 {
     local FILE
@@ -42,6 +123,15 @@ link_dotfiles ()
             fi
             chmod 700 "$HOME/.ssh"
 
+            # Copy tracked public SSH material before generating derived files.
+            if cp -rfv "$PWD/$FILE/"* "$HOME/$FILE/"; then
+                ((++LINKED))
+            else
+                ERRORS+=("Failed to copy $FILE")
+                ((++FAILED))
+                continue
+            fi
+
             # setup proper permissions on existing keys
             [[ -e "$HOME/.ssh/id_rsa" ]] && chmod 600 "$HOME/.ssh/id_rsa"
             [[ -e "$HOME/.ssh/id_rsa.pub" ]] && chmod 644 "$HOME/.ssh/id_rsa.pub"
@@ -53,19 +143,9 @@ link_dotfiles ()
             touch "$HOME/.ssh/known_hosts"
             chmod 644 "$HOME/.ssh/known_hosts"
 
-            # Generate allowed_signers from local signing key for git signature verification
-            local EMAIL
-            EMAIL=$(git config user.email 2>/dev/null)
-            if [ -n "$EMAIL" ] && [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
-                echo "$EMAIL $(cat "$HOME/.ssh/id_ed25519.pub")" > "$HOME/.ssh/allowed_signers"
-                chmod 644 "$HOME/.ssh/allowed_signers"
-            fi
-
-            # copy any files
-            if cp -rfv "$PWD/$FILE/"* "$HOME/$FILE/"; then
-                ((++LINKED))
-            else
-                ERRORS+=("Failed to copy $FILE")
+            # Preserve existing signers and add identities from local Git profiles.
+            if ! update_allowed_signers; then
+                ERRORS+=("Failed to update .ssh/allowed_signers")
                 ((++FAILED))
             fi
 
@@ -74,7 +154,7 @@ link_dotfiles ()
 
         if [ -e "$FILE" ]; then
             if [ -d "$HOME/$FILE" ]; then
-                rm -rf "$HOME/$FILE"
+                rm -rf "${HOME:?HOME must be set}/$FILE"
             fi
             if ln -fsv "$PWD/$FILE" "$HOME/$FILE"; then
                 ((++LINKED))
@@ -94,7 +174,7 @@ fi
 
 if [[ "$1" != "--force" && "$1" != "-f" ]]; then
     echo
-    read -p "This may overwrite existing files in your home directory. Are you sure? (Y/n) " -n 1
+    read -r -p "This may overwrite existing files in your home directory. Are you sure? (Y/n) " -n 1
     echo
     case $REPLY in
         [Nn]*)

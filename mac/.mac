@@ -1,5 +1,9 @@
 # .mac
 
+# Enable colors for the macOS/BSD implementation of ls.
+export CLICOLOR=1
+export LSCOLORS=GxFxCxDxBxegedabagaced
+
 # Flush the DNS cache
 alias flushdns="sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder"
 
@@ -10,6 +14,10 @@ alias updateall='sudo softwareupdate -i -a; brew update; brew upgrade; brew clea
 if [ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]; then
     alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 fi
+
+# Provide GNU-style checksum command names on macOS.
+command -v md5sum >/dev/null 2>&1 || alias md5sum="md5"
+command -v sha1sum >/dev/null 2>&1 || alias sha1sum="shasum"
 
 # Hide Desktop Icons
 alias hidedesktop='defaults write com.apple.finder CreateDesktop false; killall Finder'

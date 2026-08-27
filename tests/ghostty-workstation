@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 set -eu
 
@@ -56,14 +56,14 @@ mkdir -p \
     "$TEST_HOME/Library/Fonts"
 
 cat > "$FAKE_BIN/uname" <<'EOF'
-#!/bin/sh
+#!/usr/bin/env sh
 
 [ "$#" -eq 1 ] && [ "$1" = -s ] || exit 1
 printf 'Darwin\n'
 EOF
 
 cat > "$FAKE_BIN/brew" <<'EOF'
-#!/bin/sh
+#!/usr/bin/env sh
 
 set -eu
 
@@ -93,7 +93,7 @@ esac
 EOF
 
 cat > "$FAKE_BIN/ghostty" <<'EOF'
-#!/bin/sh
+#!/usr/bin/env sh
 
 set -eu
 

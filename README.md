@@ -29,8 +29,9 @@ install software or migrate configuration automatically. See the focused
 | `mac/ghostty/` | Ghostty, Nerd Font, and conflict-safe config setup for macOS |
 | `mac/starship/` | Starship, minimal prompt overrides, and conflict-safe setup for macOS |
 | `linux/` | Linux-specific config |
-| `.profile` | Shared login shell config (PATH setup, JAVA_HOME) |
-| `.bashrc` / `.zshrc` | Interactive shell config with git prompt, aliases, history |
+| `.profile` | Silent shared environment setup (PATH, JAVA_HOME, SSH agent socket) |
+| `.zshenv` / `.zprofile` | Always-loaded zsh environment and login-only Homebrew setup |
+| `.bashrc` / `.zshrc` | Interactive shell config with prompts, aliases, completion, and history |
 | `.bash_aliases` | Functions and aliases shared between bash and zsh |
 | `.prompt` | Bash-specific PS1 with git branch, dirty, and ahead indicators |
 | `.gitconfig` | Git aliases, color settings, and workflow defaults |
@@ -54,14 +55,16 @@ cp -r ~/dotfiles/web/. . && cp ~/dotfiles/git/.gitignore-web .gitignore
 
 ## Validation
 
-Run the focused workstation tests after changing either component:
+Run the focused workstation and shell-startup tests after changing these components:
 
 ```bash
 shellcheck mac/ghostty/install mac/ghostty/setup \
     mac/starship/install mac/starship/setup \
-    tests/ghostty-workstation.sh tests/starship-workstation.sh mac/setupenv
-tests/ghostty-workstation.sh
-tests/starship-workstation.sh
+    tests/ghostty-workstation tests/starship-workstation \
+    tests/dotfiles-startup mac/setupenv setupenv
+tests/ghostty-workstation
+tests/starship-workstation
+tests/dotfiles-startup
 ```
 
 ## Customization
@@ -80,11 +83,11 @@ Some highlights from `.gitconfig`:
 | Alias | Command |
 |-------|---------|
 | `git lg` | Pretty graph log with author and signature status |
-| `git staged` / `git unstaged` | Diff shortcuts for staged/unstaged changes |
+| `git staged` / `git unstage` | Inspect staged changes or unstage selected paths |
 | `git undo` | Soft reset last commit |
-| `git cleanup` | Delete branches already merged into main |
+| `git cleanup` | Delete branches already merged into the remote's default branch |
 | `git amend` | Amend with previous commit message |
-| `git compare` | Show commits ahead of origin/main |
+| `git compare` | Show commits ahead of the remote's default branch |
 | `git alias` | List all git aliases |
 
 ## Note on Git Email

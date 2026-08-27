@@ -19,8 +19,8 @@
     staged = diff --cached
     unstage = reset HEAD --
     undo = reset --soft HEAD~1
-    compare = !git --no-pager log origin/main..HEAD --abbrev-commit --pretty=oneline --date=relative
-    cleanup = !git branch --merged main | grep -v 'main$' | xargs git branch -d
+    compare = "!f() { upstream=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD) || { printf '%s\\n' 'origin/HEAD is not configured' >&2; return 1; }; git --no-pager log \"$upstream..HEAD\" --abbrev-commit --pretty=oneline --date=relative; }; f"
+    cleanup = "!f() { remote_default=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD) || { printf '%s\\n' 'origin/HEAD is not configured' >&2; return 1; }; default_branch=${remote_default#origin/}; git branch --format='%(refname:short)' --merged \"$default_branch\" | while IFS= read -r branch_name; do [ \"$branch_name\" = \"$default_branch\" ] || git branch -d -- \"$branch_name\"; done; }; f"
     amend = !git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
     last = log -1 HEAD
     email = config user.email
@@ -28,7 +28,7 @@
 [format]
     numbered = auto
 [core]
-    whitespace = -trailing-space
+    whitespace = trailing-space
     excludesfile = ~/.gitignore
 [rerere]
     enabled = true

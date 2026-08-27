@@ -1,0 +1,120 @@
+#!/usr/bin/env sh
+
+set -eu
+
+PROGRAM_NAME=${0##*/}
+SCRIPT_DIRECTORY=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+REPOSITORY_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIRECTORY/.." && pwd)
+TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-startup.XXXXXX")
+TEST_HOME=$TEST_ROOT/home
+FAKE_BIN=$TEST_ROOT/bin
+BASE_EMAIL=$(git config --file "$REPOSITORY_ROOT/.gitconfig" --get user.email)
+PRIVATE_EMAIL=private@example.invalid
+PRESERVED_EMAIL=preserved@example.invalid
+
+cleanup() {
+    if [ -n "${TEST_ROOT:-}" ] && [ -d "$TEST_ROOT" ]; then
+        rm -rf -- "$TEST_ROOT"
+    fi
+}
+
+fail() {
+    printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
+    exit 1
+}
+
+trap cleanup EXIT HUP INT TERM
+
+mkdir -p "$TEST_HOME/.ssh" "$TEST_HOME/.luarocks/bin" "$FAKE_BIN"
+
+cat > "$FAKE_BIN/uname" <<'EOF'
+#!/usr/bin/env sh
+
+printf 'Darwin\n'
+EOF
+chmod 0755 "$FAKE_BIN/uname"
+
+# The literal tilde verifies setupenv's local include-path expansion.
+# shellcheck disable=SC2088
+git config --file "$TEST_HOME/.gitconfig.local" \
+    'includeIf.gitdir:~/dev/private/.path' '~/.gitconfig-private'
+git config --file "$TEST_HOME/.gitconfig-private" user.email "$PRIVATE_EMAIL"
+
+public_key=$(cat "$REPOSITORY_ROOT/.ssh/id_ed25519.pub")
+printf '%s %s\n' "$PRESERVED_EMAIL" "$public_key" \
+    > "$TEST_HOME/.ssh/allowed_signers"
+
+(
+    cd "$REPOSITORY_ROOT"
+    HOME="$TEST_HOME" PATH="$FAKE_BIN:$PATH" ./setupenv -f >/dev/null
+)
+
+for linked_file in \
+    .bash_aliases \
+    .profile \
+    .zprofile \
+    .zshenv \
+    .zshrc \
+    .mac
+do
+    [ -L "$TEST_HOME/$linked_file" ] \
+        || fail "setup did not link $linked_file"
+done
+
+for expected_email in "$BASE_EMAIL" "$PRIVATE_EMAIL" "$PRESERVED_EMAIL"; do
+    awk -v principal="$expected_email" \
+        '$1 == principal { found = 1 } END { exit !found }' \
+        "$TEST_HOME/.ssh/allowed_signers" \
+        || fail "allowed_signers omitted an expected local identity"
+done
+
+signer_count_before=$(awk 'NF { count += 1 } END { print count + 0 }' \
+    "$TEST_HOME/.ssh/allowed_signers")
+(
+    cd "$REPOSITORY_ROOT"
+    HOME="$TEST_HOME" PATH="$FAKE_BIN:$PATH" ./setupenv -f >/dev/null
+)
+signer_count_after=$(awk 'NF { count += 1 } END { print count + 0 }' \
+    "$TEST_HOME/.ssh/allowed_signers")
+[ "$signer_count_before" -eq "$signer_count_after" ] \
+    || fail "allowed_signers changed after an idempotent setup run"
+
+non_interactive_output=$(
+    HOME="$TEST_HOME" \
+        PATH="$FAKE_BIN:/usr/bin:/bin" \
+        ZDOTDIR="$TEST_HOME" \
+        /bin/zsh -c '
+            case ":$PATH:" in
+                *:"$HOME/.luarocks/bin":*) ;;
+                *) exit 1 ;;
+            esac
+            (( $+functions[__add_to_path] == 0 )) || exit 1
+        '
+) || fail "non-interactive zsh did not load the silent shared environment"
+[ -z "$non_interactive_output" ] \
+    || fail "non-interactive zsh startup emitted output"
+
+cache_root=$TEST_ROOT/cache
+mkdir -p "$cache_root"
+HOME="$TEST_HOME" \
+    PATH="$FAKE_BIN:/usr/bin:/bin" \
+    STARSHIP_CACHE="$cache_root" \
+    TERM=xterm-256color \
+    ZDOTDIR="$TEST_HOME" \
+    /bin/zsh -lic '
+        alias flushdns >/dev/null || exit 1
+        (( $+functions[compinit] )) || exit 1
+        [[ "$HISTFILE" = "$HOME/.zsh_history" ]] || exit 1
+    ' >/dev/null 2>&1 \
+    || fail "interactive login zsh did not load platform and interactive config"
+
+forwarded_socket="$TEST_ROOT/forwarded agent.sock"
+: > "$forwarded_socket"
+HOME="$TEST_HOME" SSH_AUTH_SOCK="$forwarded_socket" \
+    "$REPOSITORY_ROOT/.ssh/rc"
+[ -L "$TEST_HOME/.ssh/ssh_auth_sock" ] \
+    || fail "SSH rc did not create the stable agent-socket link"
+[ "$(readlink "$TEST_HOME/.ssh/ssh_auth_sock")" = "$forwarded_socket" ] \
+    || fail "SSH rc did not preserve an agent-socket path containing spaces"
+
+printf 'Validated dotfile bootstrap and local/SSH zsh startup boundaries.\n'

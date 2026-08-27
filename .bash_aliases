@@ -4,20 +4,18 @@
 
 function git-root
 {
-    git rev-parse --is-inside-work-tree 1> /dev/null || return
+    local NEXT_ROOT
+    local ROOT
 
-    while :
+    ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || return
+    while NEXT_ROOT=$(git -C "$ROOT/.." rev-parse --show-toplevel 2>/dev/null)
     do
-        cd "$(git rev-parse --show-toplevel)"
-        cd ..
-        git rev-parse --is-inside-work-tree &> /dev/null || break
+        [ "$NEXT_ROOT" != "$ROOT" ] || break
+        ROOT=$NEXT_ROOT
     done
-    cd - &> /dev/null
-}
 
-# Everyone needs some color in their life
-export CLICOLOR=1
-export LSCOLORS=GxFxCxDxBxegedabagaced
+    cd "$ROOT" || return
+}
 
 # Add some easy shortcuts for formatted directory listings
 if ls --color=auto &>/dev/null; then
@@ -34,9 +32,3 @@ alias kp='ps auxwww'
 
 # git helper aliases. they change the cwd so they need to be outside of .gitconfig
 alias git-top='cd "$(git rev-parse --show-toplevel)"'
-
-# macOS has no `md5sum`, so use `md5` as a fallback
-command -v md5sum > /dev/null || alias md5sum="md5"
-
-# macOS has no `sha1sum`, so use `shasum` as a fallback
-command -v sha1sum > /dev/null || alias sha1sum="shasum"

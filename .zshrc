@@ -36,9 +36,6 @@ function __source_local
     __source "$HOME/.$HOST_NAME"
 }
 
-# Load shared login-shell configuration in non-login interactive shells too.
-__source "$HOME/.profile"
-
 # Persist and share history across interactive zsh sessions.
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=10000
@@ -55,12 +52,6 @@ __source "$HOME/.zshrc.local"
 
 # Enable zsh completion.
 autoload -Uz compinit && compinit
-
-# Add LuaRocks executables without duplicating PATH entries.
-if [ -d "$HOME/.luarocks/bin" ]; then
-    typeset -U path PATH
-    path=("$HOME/.luarocks/bin" "${path[@]}")
-fi
 
 # Use Starship when installed and retain zsh's default prompt otherwise.
 if command -v starship >/dev/null 2>&1; then
