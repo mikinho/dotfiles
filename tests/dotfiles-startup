@@ -8,7 +8,6 @@ REPOSITORY_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIRECTORY/.." && pwd)
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-startup.XXXXXX")
 TEST_HOME=$TEST_ROOT/home
 FAKE_BIN=$TEST_ROOT/bin
-BASE_EMAIL=$(git config --file "$REPOSITORY_ROOT/.gitconfig" --get user.email)
 PRIVATE_EMAIL=private@example.invalid
 PRESERVED_EMAIL=preserved@example.invalid
 
@@ -61,7 +60,7 @@ do
         || fail "setup did not link $linked_file"
 done
 
-for expected_email in "$BASE_EMAIL" "$PRIVATE_EMAIL" "$PRESERVED_EMAIL"; do
+for expected_email in "$PRIVATE_EMAIL" "$PRESERVED_EMAIL"; do
     awk -v principal="$expected_email" \
         '$1 == principal { found = 1 } END { exit !found }' \
         "$TEST_HOME/.ssh/allowed_signers" \

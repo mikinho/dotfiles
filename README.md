@@ -61,10 +61,11 @@ Run the focused workstation and shell-startup tests after changing these compone
 shellcheck mac/ghostty/install mac/ghostty/setup \
     mac/starship/install mac/starship/setup \
     tests/ghostty-workstation tests/starship-workstation \
-    tests/dotfiles-startup mac/setupenv setupenv
+    tests/dotfiles-startup tests/git-identity mac/setupenv setupenv
 tests/ghostty-workstation
 tests/starship-workstation
 tests/dotfiles-startup
+tests/git-identity
 ```
 
 ## Customization
@@ -88,11 +89,36 @@ Some highlights from `.gitconfig`:
 | `git amend` | Amend with previous commit message |
 | `git alias` | List all git aliases |
 
-## Note on Git Email
+## Git Identity
 
-The `.gitconfig` email is intentionally invalid to force per-repo configuration:
+The global `.gitconfig` intentionally sets `user.name` but does not set
+`user.email`. With `user.useConfigOnly = true`, Git refuses to create a commit
+unless an email is supplied explicitly. Configure each repository after cloning:
 
 ```bash
-cd your-repo
-git config user.email "you@example.com"
+git config --local user.email "you@example.com"
+git config --show-origin --get user.email
 ```
+
+For groups of repositories that share an identity, keep the existing
+`~/.gitconfig.local` include and add a conditional include there. A trailing
+slash on the `gitdir` pattern applies the identity to repositories beneath that
+directory:
+
+```gitconfig
+[includeIf "gitdir:~/dev/work/"]
+    path = ~/.gitconfig-work
+```
+
+Then define the identity in the referenced file:
+
+```gitconfig
+[user]
+    email = "you@work.example"
+```
+
+Run `tests/git-identity` to validate the policy safely. It uses an isolated
+temporary home and two temporary repositories: an unconfigured commit must
+fail, while a repository with a local email must commit successfully. It does
+not read or modify the real global Git configuration. Environment variables or
+command-level Git configuration can still supply an identity explicitly.

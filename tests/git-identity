@@ -1,0 +1,91 @@
+#!/usr/bin/env sh
+
+set -eu
+
+PROGRAM_NAME=${0##*/}
+SCRIPT_DIRECTORY=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+REPOSITORY_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIRECTORY/.." && pwd)
+GLOBAL_CONFIG=$REPOSITORY_ROOT/.gitconfig
+TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-git-identity.XXXXXX")
+TEST_HOME=$TEST_ROOT/home
+UNCONFIGURED_REPOSITORY=$TEST_ROOT/unconfigured
+CONFIGURED_REPOSITORY=$TEST_ROOT/configured
+CONFIGURED_EMAIL=configured@example.invalid
+
+cleanup() {
+    if [ -n "${TEST_ROOT:-}" ] && [ -d "$TEST_ROOT" ]; then
+        rm -rf -- "$TEST_ROOT"
+    fi
+}
+
+fail() {
+    printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
+    exit 1
+}
+
+run_git() (
+    unset EMAIL
+    unset GIT_AUTHOR_EMAIL
+    unset GIT_AUTHOR_NAME
+    unset GIT_COMMITTER_EMAIL
+    unset GIT_COMMITTER_NAME
+    unset GIT_CONFIG_COUNT
+    unset GIT_CONFIG_PARAMETERS
+    unset GIT_CONFIG_SYSTEM
+    HOME=$TEST_HOME
+    GIT_CONFIG_GLOBAL=$GLOBAL_CONFIG
+    GIT_CONFIG_NOSYSTEM=1
+    LC_ALL=C
+    export HOME GIT_CONFIG_GLOBAL GIT_CONFIG_NOSYSTEM LC_ALL
+    git "$@"
+)
+
+initialize_repository() {
+    repository=$1
+
+    mkdir -p "$repository"
+    run_git -C "$repository" init --quiet
+    printf 'identity validation\n' > "$repository/validation.txt"
+    run_git -C "$repository" add validation.txt
+}
+
+trap cleanup EXIT HUP INT TERM
+
+mkdir -p "$TEST_HOME"
+
+if run_git config --global --get user.email >/dev/null 2>&1; then
+    fail "the tracked global configuration unexpectedly supplies user.email"
+fi
+[ "$(run_git config --global --get user.useConfigOnly)" = true ] \
+    || fail "the tracked global configuration does not enable user.useConfigOnly"
+
+initialize_repository "$UNCONFIGURED_REPOSITORY"
+if run_git -C "$UNCONFIGURED_REPOSITORY" \
+    commit --no-gpg-sign -m "test: reject missing identity" \
+    >"$TEST_ROOT/unconfigured.stdout" \
+    2>"$TEST_ROOT/unconfigured.stderr"; then
+    fail "Git created a commit without an explicitly configured email"
+fi
+if run_git -C "$UNCONFIGURED_REPOSITORY" \
+    rev-parse --verify HEAD >/dev/null 2>&1; then
+    fail "the unconfigured repository has an unexpected commit"
+fi
+grep -F 'no email was given and auto-detection is disabled' \
+    "$TEST_ROOT/unconfigured.stderr" >/dev/null \
+    || fail "the unconfigured commit failed for an unexpected reason"
+
+initialize_repository "$CONFIGURED_REPOSITORY"
+run_git -C "$CONFIGURED_REPOSITORY" \
+    config --local user.email "$CONFIGURED_EMAIL"
+run_git -C "$CONFIGURED_REPOSITORY" \
+    commit --quiet --no-gpg-sign -m "test: accept configured identity"
+
+[ "$(run_git -C "$CONFIGURED_REPOSITORY" log -1 --format=%ae)" = \
+    "$CONFIGURED_EMAIL" ] \
+    || fail "the configured commit has the wrong author email"
+[ "$(run_git -C "$CONFIGURED_REPOSITORY" log -1 --format=%ce)" = \
+    "$CONFIGURED_EMAIL" ] \
+    || fail "the configured commit has the wrong committer email"
+
+printf '%s\n' \
+    'Validated fail-closed Git identity and repository-local email behavior.'
